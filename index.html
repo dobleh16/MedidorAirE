@@ -1,0 +1,3044 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="description" content="MedidorAir-E - Monitor de consumo eléctrico personal para AIR-E en Barranquilla, Colombia">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0a0f1a">
+  <title>MedidorAir-E | AIR-E Barranquilla</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Orbitron:wght@400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #07090e;
+      --bg-secondary: #0d1017;
+      --bg-card: rgba(18, 22, 33, 0.7);
+      --bg-card-hover: rgba(22, 28, 41, 0.85);
+      --accent-cyan: #0ea5e9;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --accent-amber: #f59e0b;
+      --accent-purple: #8b5cf6;
+      --text-primary: #f3f4f6;
+      --text-secondary: #9ca3af;
+      --text-muted: #6b7280;
+      --border-glass: rgba(255, 255, 255, 0.03);
+      --border-glass-hover: rgba(255, 255, 255, 0.12);
+      --shadow-glow: 0 4px 20px rgba(0, 0, 0, 0.25);
+      --shadow-glow-strong: 0 10px 30px rgba(0, 0, 0, 0.45);
+      --radius: 20px;
+      --radius-sm: 12px;
+      --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      --font-display: 'Outfit', sans-serif;
+      --font-mono: 'Plus Jakarta Sans', sans-serif;
+      --font-body: 'Plus Jakarta Sans', sans-serif;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --nav-height: 64px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      min-height: 100dvh;
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at 15% 15%, rgba(14, 165, 233, 0.04) 0%, transparent 40%),
+                  radial-gradient(circle at 85% 85%, rgba(16, 185, 129, 0.03) 0%, transparent 45%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.02) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-primary); }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--accent-cyan); }
+
+    /* ============ LOGIN SCREEN ============ */
+    .login-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #07090e 0%, #0d1017 100%);
+      transition: opacity 0.5s ease, visibility 0.5s ease;
+    }
+
+    .login-screen.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .login-card {
+      text-align: center;
+      padding: 48px 36px;
+      background: var(--bg-card);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+      border: 1px solid var(--border-glass);
+      border-radius: 28px;
+      max-width: 420px;
+      width: 90%;
+      box-shadow: var(--shadow-glow-strong);
+      animation: loginFloat 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes loginFloat {
+      from { opacity: 0; transform: translateY(20px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .login-logo {
+      width: 76px; height: 76px;
+      margin: 0 auto 24px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      color: #ffffff;
+      box-shadow: 0 8px 24px rgba(14, 165, 233, 0.2);
+      animation: pulse-glow 3s ease-in-out infinite;
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { transform: scale(1); box-shadow: 0 8px 24px rgba(14, 165, 233, 0.2); }
+      50% { transform: scale(1.04); box-shadow: 0 8px 32px rgba(14, 165, 233, 0.4); }
+    }
+
+    .login-title {
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+
+    .login-subtitle {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 36px;
+      font-weight: 600;
+    }
+
+    .btn-google {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 32px;
+      background: #ffffff;
+      color: #111827;
+      border: none;
+      border-radius: 14px;
+      font-family: var(--font-body);
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+      width: 100%;
+      justify-content: center;
+    }
+
+    .btn-google:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.35);
+      background: #f9fafb;
+    }
+
+    .btn-google:active { transform: translateY(0); }
+
+    .btn-google svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+    .login-footer {
+      margin-top: 28px;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .login-loading {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 20px 0;
+    }
+
+    .login-loading.active { display: flex; }
+
+    /* ============ APP WRAPPER ============ */
+    .app-wrapper {
+      display: none;
+      position: relative;
+      z-index: 1;
+    }
+
+    .app-wrapper.active { display: block; }
+
+    .app-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 20px 24px;
+      padding-bottom: calc(var(--nav-height) + var(--safe-bottom) + 32px);
+    }
+
+    /* ============ HEADER ============ */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 0 20px;
+      gap: 16px;
+      border-bottom: 1px solid var(--border-glass);
+      margin-bottom: 24px;
+    }
+
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .logo-icon {
+      width: 44px; height: 44px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      color: #ffffff;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
+    }
+
+    .header-text { min-width: 0; }
+
+    .header h1 {
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .header-subtitle {
+      font-size: 0.65rem;
+      color: var(--text-secondary);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .user-menu {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 14px 6px 6px;
+      border-radius: 30px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      cursor: pointer;
+      transition: var(--transition);
+      position: relative;
+    }
+
+    .user-menu:hover {
+      border-color: var(--border-glass-hover);
+      background: var(--bg-card-hover);
+    }
+
+    .user-avatar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--accent-cyan);
+    }
+
+    .user-name {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      max-width: 110px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .user-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-glass-hover);
+      border-radius: var(--radius-sm);
+      padding: 8px;
+      min-width: 200px;
+      z-index: 100;
+      box-shadow: var(--shadow-glow-strong);
+      animation: fadeIn 0.2s ease;
+    }
+
+    .user-dropdown.active { display: block; }
+
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: var(--transition);
+      border: none;
+      background: none;
+      width: 100%;
+      font-family: var(--font-body);
+      text-align: left;
+    }
+
+    .dropdown-item:hover { background: rgba(255, 255, 255, 0.04); color: var(--text-primary); }
+    .dropdown-item.danger:hover { background: rgba(239, 68, 68, 0.1); color: var(--accent-red); }
+
+    .dropdown-email {
+      padding: 8px 14px;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-glass);
+      margin-bottom: 6px;
+      word-break: break-all;
+    }
+
+    .connection-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      flex-shrink: 0;
+      animation: blink 2s ease-in-out infinite;
+      box-shadow: 0 0 8px var(--accent-green);
+    }
+
+    .connection-dot.offline { background: var(--accent-red); animation: none; box-shadow: 0 0 8px var(--accent-red); }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.95); }
+    }
+
+    /* ============ BOTTOM NAV (MOBILE) ============ */
+    .bottom-nav {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: calc(var(--nav-height) + var(--safe-bottom));
+      padding-bottom: var(--safe-bottom);
+      background: rgba(7, 9, 14, 0.85);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-top: 1px solid var(--border-glass);
+      z-index: 1000;
+      justify-content: space-around;
+      align-items: center;
+    }
+
+    .bottom-nav-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 4px;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-family: var(--font-display);
+      font-size: 0.6rem;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      cursor: pointer;
+      transition: var(--transition);
+      text-transform: none;
+      flex: 1;
+      max-width: 80px;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .bottom-nav-btn .nav-icon { font-size: 1.25rem; }
+
+    .bottom-nav-btn.active { color: var(--accent-cyan); }
+    .bottom-nav-btn:active { transform: scale(0.95); }
+
+    /* ============ TOP NAV (DESKTOP) ============ */
+    .top-nav {
+      display: flex;
+      gap: 6px;
+      padding: 6px;
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      border: 1px solid var(--border-glass);
+      margin-bottom: 24px;
+    }
+
+    .top-nav .nav-tab {
+      flex: 1;
+      padding: 12px 8px;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-family: var(--font-display);
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: none;
+      cursor: pointer;
+      border-radius: var(--radius-sm);
+      transition: var(--transition);
+      white-space: nowrap;
+      text-align: center;
+    }
+
+    .top-nav .nav-tab:hover { color: var(--text-primary); background: rgba(255, 255, 255, 0.03); }
+
+    .top-nav .nav-tab.active {
+      color: #ffffff;
+      background: linear-gradient(135deg, var(--accent-cyan) 0%, rgba(14, 165, 233, 0.8) 100%);
+      box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
+    }
+
+    .tab-content { display: none; animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+    .tab-content.active { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ============ ESTRATO BAR ============ */
+    .estrato-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      background: rgba(14, 165, 233, 0.08);
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(14, 165, 233, 0.2);
+    }
+
+    .estrato-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .estrato-pill select {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border-glass);
+      color: var(--accent-cyan);
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      padding: 4px 12px;
+      border-radius: 8px;
+      outline: none;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .estrato-pill select option { background: var(--bg-primary); }
+    .estrato-pill label { font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* ============ GLASS CARD ============ */
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 20px;
+      transition: var(--transition);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .card:hover {
+      border-color: var(--border-glass-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+    }
+
+    .card-title {
+      font-family: var(--font-display);
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      text-transform: none;
+      letter-spacing: 0.5px;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-title .icon { font-size: 1.15rem; color: var(--accent-cyan); }
+
+    /* ============ METRIC CARDS ============ */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .metric-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(24px);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius);
+      padding: 20px;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-glow);
+    }
+
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green));
+      opacity: 0;
+      transition: var(--transition);
+    }
+
+    .metric-card:hover::before { opacity: 1; }
+    .metric-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-glow-strong);
+      border-color: var(--border-glass-hover);
+    }
+
+    .metric-label {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      text-transform: none;
+      letter-spacing: 0.2px;
+      margin-bottom: 8px;
+      font-family: var(--font-body);
+      font-weight: 600;
+    }
+
+    .metric-value {
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--accent-cyan);
+      line-height: 1.2;
+      word-break: break-all;
+    }
+
+    .metric-value.green { color: var(--accent-green); }
+    .metric-value.amber { color: var(--accent-amber); }
+    .metric-value.red { color: var(--accent-red); }
+
+    .metric-unit {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+      font-weight: 500;
+    }
+
+    .metric-delta {
+      font-size: 0.72rem;
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 600;
+    }
+
+    .metric-delta.up { color: var(--accent-red); }
+    .metric-delta.down { color: var(--accent-green); }
+
+    /* ============ FORM ============ */
+    .form-section { max-width: 600px; margin: 0 auto; }
+
+    .form-group { margin-bottom: 20px; }
+
+    .form-label {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      text-transform: none;
+      letter-spacing: 0.2px;
+      margin-bottom: 8px;
+      font-family: var(--font-body);
+      font-weight: 600;
+    }
+
+    .form-input, .form-select {
+      width: 100%;
+      padding: 14px 18px;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      transition: var(--transition);
+      outline: none;
+      -webkit-appearance: none;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-input:focus, .form-select:focus {
+      border-color: var(--accent-cyan);
+      background: rgba(0, 0, 0, 0.35);
+      box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15), inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .form-input::placeholder { color: var(--text-muted); }
+    .form-select option { background: var(--bg-secondary); color: var(--text-primary); }
+
+    .turno-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .turno-btn {
+      padding: 16px;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-family: var(--font-display);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      text-align: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .turno-btn:hover { border-color: rgba(255, 255, 255, 0.15); color: var(--text-primary); }
+
+    .turno-btn.active {
+      background: rgba(14, 165, 233, 0.12);
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+      box-shadow: 0 0 15px rgba(14, 165, 233, 0.1);
+    }
+
+    .btn-register {
+      width: 100%;
+      padding: 18px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
+      border: none;
+      border-radius: var(--radius-sm);
+      color: #ffffff;
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: var(--transition);
+      text-transform: uppercase;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-register:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(14, 165, 233, 0.45);
+    }
+
+    .btn-register:active { transform: scale(0.98); }
+
+    .btn-register::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+      transform: translateX(-100%);
+      transition: 0.6s;
+    }
+
+    .btn-register:hover::after { transform: translateX(100%); }
+
+    .btn-secondary {
+      padding: 10px 18px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-size: 0.78rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: var(--transition);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-danger {
+      padding: 8px 16px;
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      border-radius: 8px;
+      color: var(--accent-red);
+      font-family: var(--font-body);
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-danger:hover { background: rgba(239, 68, 68, 0.2); border-color: var(--accent-red); }
+
+    /* ============ CHARTS ============ */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .chart-container { position: relative; height: 280px; }
+    .chart-full { grid-column: 1 / -1; }
+
+    /* ============ TABLE ============ */
+    .table-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      margin: 0 -24px;
+      padding: 0 24px;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 6px;
+      font-size: 0.8rem;
+      min-width: 520px;
+    }
+
+    .data-table th {
+      font-family: var(--font-display);
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 2px solid var(--border-glass);
+      position: sticky;
+      top: 0;
+      background: var(--bg-card);
+      z-index: 10;
+    }
+
+    .data-table td {
+      padding: 12px 14px;
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.02);
+      border-top: 1px solid rgba(255, 255, 255, 0.01);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.01);
+      transition: var(--transition);
+    }
+
+    .data-table tr td:first-child { border-left: 1px solid rgba(255, 255, 255, 0.01); border-radius: 10px 0 0 10px; }
+    .data-table tr td:last-child { border-right: 1px solid rgba(255, 255, 255, 0.01); border-radius: 0 10px 10px 0; }
+    .data-table tbody tr:hover td { background: rgba(255, 255, 255, 0.06); color: #ffffff; }
+
+    .badge-turno {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      font-family: var(--font-display);
+    }
+
+    .badge-am { background: rgba(245, 158, 11, 0.12); color: var(--accent-amber); }
+    .badge-pm { background: rgba(139, 92, 246, 0.12); color: var(--accent-purple); }
+
+    /* ============ ALERTS ============ */
+    .alert-banner {
+      padding: 12px 18px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 14px;
+      font-size: 0.78rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      animation: slideDown 0.4s ease;
+      line-height: 1.5;
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .alert-warning { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.25); color: var(--accent-amber); }
+    .alert-danger { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: var(--accent-red); }
+    .alert-success { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); color: var(--accent-green); }
+    .alert-info { background: rgba(14, 165, 233, 0.08); border: 1px solid rgba(14, 165, 233, 0.2); color: var(--accent-cyan); }
+
+    /* ============ STREAK ============ */
+    .streak-container {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      background: rgba(245, 158, 11, 0.04);
+      padding: 20px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(245, 158, 11, 0.15);
+    }
+
+    .streak-number { font-family: var(--font-display); font-size: 3rem; font-weight: 800; color: var(--accent-amber); }
+    .streak-label { font-size: 0.78rem; color: var(--text-secondary); font-weight: 500; }
+
+    .badges-grid { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
+
+    .badge-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-glass);
+      font-size: 0.78rem;
+      font-weight: 500;
+    }
+
+    .badge-item.earned {
+      border-color: var(--accent-amber);
+      background: rgba(245, 158, 11, 0.08);
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.1);
+      color: var(--text-primary);
+    }
+
+    .badge-item.locked { opacity: 0.35; background: rgba(0, 0, 0, 0.1); }
+    .badge-icon { font-size: 1.3rem; }
+
+    /* ============ TIPS ============ */
+    .tips-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .tip-card {
+      padding: 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius);
+      transition: var(--transition);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .tip-card:hover {
+      border-color: var(--accent-green);
+      background: rgba(16, 185, 129, 0.03);
+      transform: translateY(-3px);
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.15);
+    }
+
+    .tip-icon { font-size: 1.6rem; margin-bottom: 8px; }
+    .tip-title { font-family: var(--font-display); font-size: 0.85rem; font-weight: 700; color: var(--accent-green); margin-bottom: 8px; }
+    .tip-text { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.6; }
+
+    /* ============ PROGRESS BAR ============ */
+    .progress-bar-bg { width: 100%; height: 8px; background: rgba(0, 0, 0, 0.25); border-radius: 4px; overflow: hidden; margin-top: 10px; }
+    .progress-bar-fill { height: 100%; border-radius: 4px; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green)); }
+    .progress-bar-fill.over { background: linear-gradient(90deg, var(--accent-amber), var(--accent-red)); }
+    .progress-bar-fill.warning { background: linear-gradient(90deg, var(--accent-amber), #f97316); }
+
+    /* ============ PERIODO CARD ============ */
+    .periodo-card {
+      background: linear-gradient(135deg, rgba(14, 165, 233, 0.05) 0%, rgba(16, 185, 129, 0.03) 100%);
+      border: 1px solid rgba(14, 165, 233, 0.15);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-glow);
+    }
+    .periodo-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green), var(--accent-amber));
+    }
+    .periodo-card .periodo-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 16px;
+    }
+    .periodo-card .periodo-title {
+      font-family: var(--font-display);
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .periodo-card .periodo-badge {
+      font-size: 0.68rem;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .periodo-badge.ok { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16,185,129,0.25); }
+    .periodo-badge.warn { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); border: 1px solid rgba(245,158,11,0.25); }
+    .periodo-badge.danger { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); border: 1px solid rgba(239,68,68,0.25); }
+    .periodo-card .periodo-big {
+      display: flex; align-items: baseline; gap: 8px;
+      margin-bottom: 8px;
+    }
+    .periodo-card .periodo-big .valor {
+      font-family: var(--font-display);
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+    .periodo-card .periodo-big .total {
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    .periodo-card .periodo-big .pct {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 700;
+      margin-left: auto;
+    }
+    .periodo-stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .periodo-stat {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.02);
+    }
+    .periodo-stat .stat-label {
+      font-size: 0.65rem;
+      color: var(--text-secondary);
+      text-transform: none;
+      letter-spacing: 0.2px;
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+    .periodo-stat .stat-value {
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .periodo-placeholder {
+      text-align: center;
+      padding: 24px 12px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+    .periodo-placeholder .config-hint {
+      display: inline-block;
+      margin-top: 12px;
+      background: rgba(14, 165, 233, 0.1);
+      color: var(--accent-cyan);
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1px solid rgba(14, 165, 233, 0.25);
+      transition: var(--transition);
+    }
+    .periodo-placeholder .config-hint:hover {
+      background: rgba(14, 165, 233, 0.2);
+    }
+
+    /* ============ MODAL ============ */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 9998;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.active { display: flex; }
+
+    .modal-content {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-glass-hover);
+      border-radius: var(--radius);
+      padding: 28px;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: var(--shadow-glow-strong);
+      animation: zoomIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes zoomIn {
+      from { transform: scale(0.9) translateY(10px); opacity: 0; }
+      to { transform: scale(1) translateY(0); opacity: 1; }
+    }
+
+    .modal-title { font-family: var(--font-display); font-size: 0.95rem; font-weight: 800; color: var(--accent-cyan); margin-bottom: 12px; letter-spacing: 0.5px; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+
+    /* ============ FILTER ROW ============ */
+    .filter-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .filter-row .form-select { width: auto; min-width: 160px; padding: 10px 14px; font-size: 0.82rem; }
+
+    /* ============ VALLE BANNER ============ */
+    .valle-banner {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 20px;
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, rgba(14, 165, 233, 0.08), rgba(16, 185, 129, 0.04));
+      border: 1px solid rgba(14, 165, 233, 0.15);
+      margin-bottom: 20px;
+    }
+
+    .valle-time { font-family: var(--font-display); font-size: 1.05rem; color: var(--accent-cyan); font-weight: 700; }
+    .valle-text { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.5; }
+
+    /* ============ TOAST ============ */
+    .toast-container {
+      position: fixed;
+      top: 24px; right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: calc(100vw - 48px);
+    }
+
+    .toast {
+      padding: 14px 22px;
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      font-weight: 600;
+      animation: toastIn 0.4s cubic-bezier(0.16, 1, 0.3, 1), toastOut 0.4s ease 3.6s forwards;
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow-glow-strong);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #ffffff;
+    }
+
+    .toast.success { background: rgba(16, 185, 129, 0.9); }
+    .toast.error { background: rgba(239, 68, 68, 0.9); }
+    .toast.info { background: rgba(14, 165, 233, 0.9); }
+    .toast.warning { background: rgba(245, 158, 11, 0.9); }
+
+    @keyframes toastIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes toastOut { from { opacity: 0; transform: translateX(40px); } }
+
+    /* ============ LAST READING ============ */
+    .last-reading-preview {
+      padding: 14px;
+      border-radius: var(--radius-sm);
+      background: rgba(14, 165, 233, 0.06);
+      border: 1px solid rgba(14, 165, 233, 0.15);
+      margin-bottom: 20px;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .last-reading-preview strong { color: var(--accent-cyan); font-family: var(--font-display); font-weight: 700; }
+
+    .spinner {
+      display: inline-block;
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-top-color: var(--accent-cyan);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .hidden { display: none !important; }
+    .text-cyan { color: var(--accent-cyan); }
+    .text-green { color: var(--accent-green); }
+    .text-red { color: var(--accent-red); }
+    .text-amber { color: var(--accent-amber); }
+    .text-muted { color: var(--text-muted); }
+    .flex-between { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+
+    .empty-state { text-align: center; padding: 48px 24px; color: var(--text-secondary); }
+    .empty-state .icon { font-size: 2.8rem; margin-bottom: 12px; }
+    .empty-state p { font-size: 0.85rem; line-height: 1.6; }
+
+    /* ============ RESPONSIVE ============ */
+    @media (max-width: 900px) {
+      .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+      .charts-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 768px) {
+      .top-nav { display: none; }
+      .bottom-nav { display: flex; }
+
+      .app-container { padding: 12px 16px; padding-bottom: calc(var(--nav-height) + var(--safe-bottom) + 16px); }
+
+      .header { padding: 12px 0 16px; margin-bottom: 16px; }
+      .header h1 { font-size: 1.1rem; }
+      .header-subtitle { font-size: 0.58rem; }
+
+      .user-name { display: none; }
+      .user-menu { padding: 5px; }
+
+      .metric-value { font-size: 1.5rem; }
+      .metric-card { padding: 16px; }
+
+      .card { padding: 20px; border-radius: var(--radius-sm); margin-bottom: 16px; }
+      .chart-container { height: 240px; }
+
+      .data-table { font-size: 0.75rem; }
+      .data-table th, .data-table td { padding: 10px 12px; }
+
+      .tips-grid { grid-template-columns: 1fr; }
+      .badges-grid { gap: 10px; }
+      .badge-item { padding: 10px 14px; font-size: 0.75rem; }
+      .periodo-stats { gap: 10px; }
+      .periodo-stat { padding: 10px 12px; }
+    }
+
+    @media (max-width: 420px) {
+      .metrics-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+      .metric-value { font-size: 1.35rem; }
+      .metric-label { font-size: 0.68rem; }
+      .metric-unit { font-size: 0.6rem; }
+      .logo-icon { width: 38px; height: 38px; font-size: 18px; border-radius: 10px; }
+      .turno-btn { font-size: 0.72rem; padding: 14px 8px; }
+      .btn-register { font-size: 0.9rem; padding: 16px; }
+      .streak-number { font-size: 2.5rem; }
+      .streak-fire { font-size: 2.2rem; }
+    }
+
+    @media (max-width: 360px) {
+      .metrics-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</style>
+</head>
+<body>
+
+  <!-- ========== LOGIN SCREEN ========== -->
+  <div class="login-screen" id="loginScreen">
+    <div class="login-card">
+      <div class="login-logo">⚡</div>
+      <div class="login-title">MedidorAir-E</div>
+      <div class="login-subtitle">Monitor de Consumo · AIR-E · Barranquilla</div>
+
+      <div id="loginButtons">
+        <button class="btn-google" id="btnGoogleLogin">
+          <svg viewBox="0 0 24 24">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+          Iniciar sesión con Google
+        </button>
+      </div>
+
+      <div class="login-loading" id="loginLoading">
+        <div class="spinner" style="width:32px;height:32px;border-width:3px;"></div>
+        <span style="font-size:0.78rem;color:var(--text-secondary);">Iniciando sesión...</span>
+      </div>
+
+      <div class="login-footer">
+        Cada miembro de la familia puede iniciar sesión<br>con su cuenta de Google y llevar su propio registro.
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== APP ========== -->
+  <div class="app-wrapper" id="appWrapper">
+    <div class="app-container">
+
+      <!-- HEADER -->
+      <header class="header">
+        <div class="header-brand">
+          <div class="logo-icon">⚡</div>
+          <div class="header-text">
+            <h1>MedidorAir-E</h1>
+            <div class="header-subtitle">Monitor · AIR-E · Barranquilla</div>
+          </div>
+        </div>
+        <div class="header-right">
+          <div class="connection-dot" id="statusDot" title="Estado de conexión"></div>
+          <div class="user-menu" id="userMenu">
+            <img class="user-avatar" id="userAvatar" src="" alt="avatar">
+            <span class="user-name" id="userName"></span>
+            <div class="user-dropdown" id="userDropdown">
+              <div class="dropdown-email" id="userEmail"></div>
+              <button class="dropdown-item" id="btnEstratoDropdown">⚡ Cambiar Estrato</button>
+              <button class="dropdown-item danger" id="btnLogout">🚪 Cerrar sesión</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- ALERTS -->
+      <div id="alertsContainer"></div>
+
+      <!-- ESTRATO BAR -->
+      <div class="estrato-bar" id="estratoBar" style="display:none;">
+        <div class="estrato-pill">
+          <label for="estratoSelect">Estrato</label>
+          <select id="estratoSelect" title="Seleccionar estrato">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3" selected>3</option>
+            <option value="4">4</option>
+            <option value="5">5-6</option>
+          </select>
+        </div>
+        <button class="btn-secondary" onclick="document.getElementById('estratoBar').style.display='none';" style="padding:6px 12px;font-size:0.65rem;">✓ Listo</button>
+      </div>
+
+      <!-- TOP NAV (desktop) -->
+      <nav class="top-nav" id="topNav">
+        <button class="nav-tab active" data-tab="dashboard">📊 Dashboard</button>
+        <button class="nav-tab" data-tab="registro">📝 Registro</button>
+        <button class="nav-tab" data-tab="graficas">📈 Gráficas</button>
+        <button class="nav-tab" data-tab="historial">📋 Historial</button>
+        <button class="nav-tab" data-tab="gamificacion">🏆 Racha</button>
+        <button class="nav-tab" data-tab="consejos">💡 Tips</button>
+      </nav>
+
+      <!-- ===== DASHBOARD ===== -->
+      <div class="tab-content active" id="tab-dashboard">
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-label">Lectura Actual</div>
+            <div class="metric-value" id="metricLecturaActual">--</div>
+            <div class="metric-unit">kWh acumulados</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Consumo Hoy</div>
+            <div class="metric-value green" id="metricConsumoHoy">--</div>
+            <div class="metric-unit">kWh</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Consumo Semana</div>
+            <div class="metric-value" id="metricConsumoSemana">--</div>
+            <div class="metric-unit">kWh</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Consumo Mes</div>
+            <div class="metric-value amber" id="metricConsumoMes">--</div>
+            <div class="metric-unit">kWh</div>
+            <div class="metric-delta" id="metricConsumoMesDelta"></div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Factura Estimada Hoy</div>
+            <div class="metric-value green" id="metricFactura">--</div>
+            <div class="metric-unit">COP (sin tasa seguridad)</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Proyección Mes</div>
+            <div class="metric-value" id="metricProyeccion">--</div>
+            <div class="metric-unit">kWh al cierre</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Proyección vs Anterior</div>
+            <div class="metric-value" id="metricProyeccionDelta">--</div>
+            <div class="metric-unit" id="metricProyeccionDeltaLabel">vs anterior</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Factura Proyectada</div>
+            <div class="metric-value green" id="metricFacturaProyectada">--</div>
+            <div class="metric-unit">COP (sin tasa seguridad)</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Total con Tasa Seguridad</div>
+            <div class="metric-value green" id="metricFacturaTotalTasa">--</div>
+            <div class="metric-unit">COP (con tasa seguridad)</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Promedio Diario</div>
+            <div class="metric-value" id="metricPromDiario">--</div>
+            <div class="metric-unit">kWh/día</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">🔥 Racha</div>
+            <div class="metric-value amber" id="metricRacha">0</div>
+            <div class="metric-unit">días consecutivos</div>
+          </div>
+        </div>
+
+        <!-- CONSUMO DEL PERÍODO -->
+        <div class="periodo-card" id="periodoCard">
+          <div id="periodoPlaceholder" class="periodo-placeholder">
+            ⚡ Configura tu <strong>lectura anterior</strong>, <strong>día de corte</strong> y <strong>consumo máximo</strong> para activar el control del período.<br>
+            <span class="config-hint" onclick="switchTab('gamificacion')">🏆 Ir a Configuración</span>
+          </div>
+          <div id="periodoContent" class="hidden">
+            <div class="periodo-header">
+              <div class="periodo-title">⚡ Consumo del Período</div>
+              <span class="periodo-badge ok" id="periodoBadge">🟢 En control</span>
+            </div>
+            <div class="periodo-big">
+              <span class="valor" id="periodoValor">0</span>
+              <span class="total">/ <span id="periodoMax">200</span> kWh</span>
+              <span class="pct" id="periodoPct" style="color:var(--accent-green);">0%</span>
+            </div>
+            <div class="progress-bar-bg" style="height:12px; border-radius:6px;">
+              <div class="progress-bar-fill" id="periodoProgressBar" style="width:0%"></div>
+            </div>
+            <div class="periodo-stats">
+              <div class="periodo-stat">
+                <div class="stat-label">📖 Lectura Anterior</div>
+                <div class="stat-value" id="periodoLectAnterior">--</div>
+              </div>
+              <div class="periodo-stat">
+                <div class="stat-label">📊 Lectura Actual</div>
+                <div class="stat-value" id="periodoLectActual">--</div>
+              </div>
+              <div class="periodo-stat">
+                <div class="stat-label">🎯 kWh Restantes</div>
+                <div class="stat-value" id="periodoRestante">--</div>
+              </div>
+              <div class="periodo-stat">
+                <div class="stat-label">📅 Días Restantes</div>
+                <div class="stat-value" id="periodoDiasRestantes">--</div>
+              </div>
+              <div class="periodo-stat">
+                <div class="stat-label">📈 Promedio Diario</div>
+                <div class="stat-value" id="periodoPromDiario">--</div>
+              </div>
+              <div class="periodo-stat">
+                <div class="stat-label">⚠️ Máx. Diario Permitido</div>
+                <div class="stat-value" id="periodoMaxDiario">--</div>
+              </div>
+            </div>
+            <div style="margin-top:12px; padding:10px 14px; background:rgba(10,15,26,0.5); border-radius:8px; border:1px solid rgba(0,229,255,0.06);">
+              <div style="font-size:0.58rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">📊 Proyección al Cierre</div>
+              <div style="font-family:var(--font-mono); font-size:0.85rem; font-weight:600;" id="periodoProyeccion">--</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span class="icon">🎯</span> Meta de Ahorro Mensual</div>
+          <div class="flex-between">
+            <span class="text-muted" style="font-size:0.72rem;" id="metaLabel">0 / 200 kWh</span>
+            <span class="text-cyan" style="font-size:0.72rem;font-weight:700;" id="metaPercent">0%</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="metaProgressBar" style="width:0%"></div>
+          </div>
+        </div>
+
+        <!-- COMPARATIVA CON FACTURA ANTERIOR -->
+        <div class="card" id="cardComparacionFactura">
+          <div class="card-title"><span class="icon">⚖️</span> Comparativa vs Factura Anterior</div>
+          <div id="comparacionPlaceholder" style="font-size:0.72rem; color:var(--text-secondary); text-align:center; padding:10px 0;">
+            Ingresa los datos de tu última factura en la pestaña <strong>Racha / Config 🏆</strong> para activar la comparativa.
+          </div>
+          <div id="comparacionContent" class="hidden" style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:8px;">
+            <div style="border-right:1px solid var(--border-glass); padding-right:12px;">
+              <div style="font-size:0.6rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Consumo del Mes</div>
+              <div style="font-size:0.72rem; color:var(--text-secondary);">Real anterior: <span id="compKwhAnterior" style="font-family:var(--font-mono); color:var(--text-primary); font-weight:600;">--</span></div>
+              <div style="font-size:0.72rem; color:var(--text-secondary);">Proyectado: <span id="compKwhActual" style="font-family:var(--font-mono); color:var(--accent-cyan); font-weight:600;">--</span></div>
+              <div style="margin-top:8px;" id="compKwhBadge"></div>
+            </div>
+            <div style="padding-left:4px;">
+              <div style="font-size:0.6rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Costo Estimado</div>
+              <div style="font-size:0.72rem; color:var(--text-secondary);">Real anterior: <span id="compCopAnterior" style="font-family:var(--font-mono); color:var(--text-primary); font-weight:600;">--</span></div>
+              <div style="font-size:0.72rem; color:var(--text-secondary);">Estimado: <span id="compCopActual" style="font-family:var(--font-mono); color:var(--accent-green); font-weight:600;">--</span></div>
+              <div style="margin-top:8px;" id="compCopBadge"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span class="icon">📊</span> Consumo Últimos 7 Días</div>
+          <div class="chart-container"><canvas id="quickChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- ===== REGISTRO ===== -->
+      <div class="tab-content" id="tab-registro">
+        <div class="card form-section">
+          <div class="card-title"><span class="icon">📝</span> Nueva Lectura del Medidor</div>
+          <div class="last-reading-preview" id="lastReadingPreview">Cargando última lectura...</div>
+
+          <form id="lecturaForm" autocomplete="off">
+            <div class="form-group">
+              <label class="form-label" for="inputFecha">Fecha</label>
+              <input type="date" class="form-input" id="inputFecha">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Turno</label>
+              <div class="turno-selector">
+                <button type="button" class="turno-btn" data-turno="AM" id="btnAM">☀️ Mañana (AM)</button>
+                <button type="button" class="turno-btn active" data-turno="PM" id="btnPM">🌙 Noche (PM)</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="inputLectura">Lectura del Medidor (kWh)</label>
+              <input type="number" step="0.01" min="0" class="form-input" id="inputLectura"
+                     placeholder="Ej: 12109.52" inputmode="decimal" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="inputNota">Nota (opcional)</label>
+              <input type="text" class="form-input" id="inputNota" placeholder="Ej: Dejé el AC toda la noche" style="font-size:0.85rem;">
+            </div>
+            <button type="submit" class="btn-register" id="btnRegistrar">⚡ REGISTRAR LECTURA</button>
+          </form>
+        </div>
+
+        <!-- CALCULADORA DE METAS -->
+        <div class="card form-section" style="margin-top: 16px;">
+          <div class="card-title"><span class="icon">🧮</span> Calculadora de Consumo Diario</div>
+          <p style="font-size:0.7rem; color:var(--text-secondary); margin-bottom:16px;">
+            Ajusta los valores para saber cuánto debes consumir al día para cumplir tu meta.
+          </p>
+          
+          <div class="form-group">
+            <label class="form-label" for="calcMeta">Meta de Consumo (kWh)</label>
+            <input type="number" step="1" min="0" class="form-input" id="calcMeta" placeholder="Ej: 200" style="padding:10px 12px; font-size:0.85rem;">
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label" for="calcActual">Consumo Acumulado Actual (kWh)</label>
+            <input type="number" step="0.1" min="0" class="form-input" id="calcActual" placeholder="Ej: 80" style="padding:10px 12px; font-size:0.85rem;">
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label" for="calcDias">Días Disponibles / Restantes</label>
+            <input type="number" step="1" min="1" class="form-input" id="calcDias" placeholder="Ej: 15" style="padding:10px 12px; font-size:0.85rem;">
+          </div>
+
+          <div id="calcResultContainer" class="card" style="background: rgba(0, 229, 255, 0.05); border-color: rgba(0, 229, 255, 0.2); margin-top:20px; padding: 16px; text-align: center; margin-bottom: 0;">
+            <div style="font-size: 0.58rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Consumo Diario Recomendado</div>
+            <div id="calcDiarioRecomendado" class="metric-value green" style="font-size: 1.8rem; font-family: var(--font-display);">--</div>
+            <div id="calcDiarioUnidad" class="metric-unit" style="margin-top: 4px;">kWh / día</div>
+            <div id="calcMensaje" style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 10px; line-height: 1.4;"></div>
+          </div>
+
+          <!-- Equivalencias -->
+          <div id="calcEquivalencias" style="margin-top: 16px; border-top: 1px solid var(--border-glass); padding-top: 16px; display: none;">
+            <div style="font-size: 0.58rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; font-weight: 600;">Este presupuesto te permite usar aproximadamente:</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.68rem;">
+              <div style="background: rgba(10, 15, 26, 0.4); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-glass);">
+                ❄️ A/A (1000W): <strong id="eqAC" style="color: var(--accent-cyan);">0h</strong> al día
+              </div>
+              <div style="background: rgba(10, 15, 26, 0.4); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-glass);">
+                🌀 Ventilador (80W): <strong id="eqVentilador" style="color: var(--accent-green);">0h</strong> al día
+              </div>
+              <div style="background: rgba(10, 15, 26, 0.4); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-glass);">
+                📺 TV Led (100W): <strong id="eqTV" style="color: var(--accent-purple);">0h</strong> al día
+              </div>
+              <div style="background: rgba(10, 15, 26, 0.4); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-glass);">
+                💡 Bombillos (5x10W): <strong id="eqBombillos" style="color: var(--accent-amber);">0h</strong> al día
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== GRÁFICAS ===== -->
+      <div class="tab-content" id="tab-graficas">
+        <div class="charts-grid">
+          <div class="card chart-full">
+            <div class="card-title"><span class="icon">📊</span> Consumo Diario — Últimos 30 Días</div>
+            <div class="chart-container"><canvas id="chartDiario"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><span class="icon">📈</span> Comparativo Mensual</div>
+            <div class="chart-container"><canvas id="chartMensual"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><span class="icon">🍩</span> Distribución AM vs PM</div>
+            <div class="chart-container"><canvas id="chartDonut"></canvas></div>
+          </div>
+          <div class="card chart-full">
+            <div class="card-title"><span class="icon">📜</span> Historial de Facturas Físicas</div>
+            <div class="chart-container"><canvas id="chartFacturas"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== HISTORIAL ===== -->
+      <div class="tab-content" id="tab-historial">
+        <div class="card">
+          <div class="card-title"><span class="icon">📋</span> Historial de Lecturas</div>
+          <div class="filter-row">
+            <select class="form-select" id="filterMes" title="Filtrar por mes"><option value="">Todos los meses</option></select>
+            <button class="btn-secondary" id="btnExportCSV">📥 Exportar CSV</button>
+          </div>
+          <div class="table-wrapper">
+            <table class="data-table" id="historialTable">
+              <thead><tr><th>Fecha</th><th>Turno</th><th>Lectura</th><th>Consumo</th><th>Nota</th><th></th></tr></thead>
+              <tbody id="historialBody"></tbody>
+            </table>
+          </div>
+          <div class="empty-state hidden" id="emptyHistorial">
+            <div class="icon">📭</div>
+            <p>No hay lecturas registradas aún.<br>¡Registra tu primera lectura!</p>
+          </div>
+        </div>
+
+        <!-- SECCIÓN DE FACTURAS PASADAS -->
+        <div class="card">
+          <div class="card-title"><span class="icon">📑</span> Historial de Facturas Físicas (Past Bills)</div>
+          
+          <!-- Formulario para agregar factura pasiva -->
+          <form id="facturaHistorialForm" autocomplete="off" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:12px; align-items:flex-end; margin-bottom:20px; border-bottom:1px solid var(--border-glass); padding-bottom:20px;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="facturaMes" style="font-size:0.6rem;">Mes de Factura</label>
+              <input type="month" class="form-input" id="facturaMes" required style="padding:10px 12px; font-size:0.85rem;">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="facturaKwh" style="font-size:0.6rem;">Consumo (kWh)</label>
+              <input type="number" step="0.01" min="0" class="form-input" id="facturaKwh" placeholder="Ej: 340.5" required style="padding:10px 12px; font-size:0.85rem;">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="facturaCop" style="font-size:0.6rem;">Valor de Factura (COP)</label>
+              <input type="number" min="0" class="form-input" id="facturaCop" placeholder="Opcional (Fórmula)" style="padding:10px 12px; font-size:0.85rem;">
+            </div>
+            <button type="submit" class="btn-secondary" style="padding:11px; font-weight:700; background:rgba(0, 229, 255, 0.12); color:var(--accent-cyan); border-color:var(--accent-cyan); text-transform:uppercase; font-size:0.68rem; letter-spacing:1px; -webkit-tap-highlight-color: transparent;">＋ Agregar</button>
+          </form>
+
+          <div class="table-wrapper">
+            <table class="data-table" id="facturasTable">
+              <thead><tr><th>Mes</th><th>Consumo</th><th>Costo COP</th><th></th></tr></thead>
+              <tbody id="facturasBody"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="emptyFacturas">
+            <div class="icon">📑</div>
+            <p>No hay facturas registradas en el historial.<br>Agrega una para ver la comparación histórica y gráfica.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== GAMIFICACIÓN ===== -->
+      <div class="tab-content" id="tab-gamificacion">
+        <div class="card">
+          <div class="card-title"><span class="icon">🔥</span> Tu Racha de Registro</div>
+          <div class="streak-container">
+            <div class="streak-fire">🔥</div>
+            <div>
+              <div class="streak-number" id="streakNumber">0</div>
+              <div class="streak-label">días consecutivos</div>
+            </div>
+          </div>
+          <div class="badges-grid" id="badgesGrid">
+            <div class="badge-item locked" id="badge7"><span class="badge-icon">🥉</span><span>7 días — Novato Eléctrico</span></div>
+            <div class="badge-item locked" id="badge15"><span class="badge-icon">🥈</span><span>15 días — Monitor Constante</span></div>
+            <div class="badge-item locked" id="badge30"><span class="badge-icon">🥇</span><span>30 días — Maestro Energético</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon">⚡</span> Control del Período de Facturación</div>
+          <div style="font-size:0.7rem; color:var(--text-secondary); margin-bottom:14px; line-height:1.5; padding:10px; background:rgba(0,229,255,0.04); border-radius:8px; border:1px solid rgba(0,229,255,0.1);">
+            📖 Ingresa la <strong style="color:var(--accent-cyan);">lectura del medidor</strong> que aparece en tu última factura de AIR-E, el <strong style="color:var(--accent-cyan);">día de corte</strong> (día que AIR-E toma la lectura), y el <strong style="color:var(--accent-cyan);">consumo máximo</strong> que deseas por período.
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inputLecturaAnterior">📖 Lectura Anterior del Medidor (kWh)</label>
+            <input type="number" step="0.01" min="0" class="form-input" id="inputLecturaAnterior" value="0" placeholder="Ej: 12450.5 — La que aparece en tu factura" style="max-width:280px;">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inputDiaCorte">📅 Día de Corte / Lectura de AIR-E (1-28)</label>
+            <input type="number" min="1" max="28" class="form-input" id="inputDiaCorte" value="15" placeholder="Ej: 15" style="max-width:160px;">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inputMetaKwh">⚡ Consumo Máximo del Período (kWh)</label>
+            <input type="number" class="form-input" id="inputMetaKwh" value="200" placeholder="Ej: 200" style="max-width:220px;">
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon">🎯</span> Configuración Adicional</div>
+          <div class="form-group">
+            <label class="form-label" for="inputLimiteFactura">Límite factura (COP)</label>
+            <input type="number" class="form-input" id="inputLimiteFactura" value="150000" placeholder="Ej: 150000" style="max-width:220px;">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inputFacturaRealKwh">Factura Real Anterior (kWh)</label>
+            <input type="number" step="0.01" class="form-input" id="inputFacturaRealKwh" value="0" placeholder="Ej: 320.5" style="max-width:220px;">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inputFacturaRealCop">Valor Factura Anterior (COP)</label>
+            <input type="number" class="form-input" id="inputFacturaRealCop" value="0" placeholder="Ej: 280000" style="max-width:220px;">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inputTasaSeguridad">Tasa de Seguridad (COP)</label>
+            <input type="number" class="form-input" id="inputTasaSeguridad" value="16000" placeholder="Ej: 16000" style="max-width:220px;">
+          </div>
+          <button class="btn-secondary" id="btnGuardarConfig" style="margin-top:8px;">💾 Guardar Configuración</button>
+        </div>
+      </div>
+
+      <!-- ===== CONSEJOS ===== -->
+      <div class="tab-content" id="tab-consejos">
+        <div class="valle-banner">
+          <span style="font-size:1.5rem;">🌙</span>
+          <div>
+            <div class="valle-time">Horario Valle: 10:00 PM — 8:00 AM</div>
+            <div class="valle-text">Durante estas horas la energía es más económica. ¡Aprovecha para poner lavadora, cargar dispositivos y usar electrodomésticos de alto consumo!</div>
+          </div>
+        </div>
+        <div class="tips-grid">
+          <div class="tip-card"><div class="tip-icon">❄️</div><div class="tip-title">Aire Acondicionado</div><div class="tip-text">En Barranquilla el AC es esencial. Configura a 24°C (no menos), limpia filtros cada 15 días. Un AC sucio consume hasta 30% más. Usa temporizador para la noche.</div></div>
+          <div class="tip-card"><div class="tip-icon">🌀</div><div class="tip-title">Ventiladores de Techo</div><div class="tip-text">Un ventilador consume ~70W vs ~1400W de un AC. Úsalos en combinación: AC a 26°C + ventilador = mismo confort, 40% menos consumo.</div></div>
+          <div class="tip-card"><div class="tip-icon">💡</div><div class="tip-title">Iluminación LED</div><div class="tip-text">Reemplaza bombillos incandescentes por LED. Un LED de 9W ilumina igual que un bombillo de 60W. Ahorro del 85% en iluminación.</div></div>
+          <div class="tip-card"><div class="tip-icon">🧊</div><div class="tip-title">Nevera Eficiente</div><div class="tip-text">No abras la nevera innecesariamente. En el calor de Barranquilla, la nevera trabaja más. Déjala en nivel medio, no la llenes demasiado ni la dejes vacía.</div></div>
+          <div class="tip-card"><div class="tip-icon">🔌</div><div class="tip-title">Standby Vampiro</div><div class="tip-text">Desconecta cargadores, TV y equipos en standby. El consumo fantasma puede representar 10-15% de tu factura. Usa regletas con interruptor.</div></div>
+          <div class="tip-card"><div class="tip-icon">👕</div><div class="tip-title">Lavadora en Valle</div><div class="tip-text">Lava ropa después de las 10 PM (horario valle AIR-E). Usa agua fría y carga completa. Seca al aire libre — en Barranquilla seca en minutos.</div></div>
+          <div class="tip-card"><div class="tip-icon">🏠</div><div class="tip-title">Aislamiento Térmico</div><div class="tip-text">Cortinas blackout o térmicas reducen el calor que entra. Pintar el techo de blanco refleja hasta 70% de la radiación solar. Menos calor = menos AC.</div></div>
+          <div class="tip-card"><div class="tip-icon">📱</div><div class="tip-title">Monitorea con esta App</div><div class="tip-text">Registra tu lectura AM y PM todos los días. Lo que se mide, se controla. Identifica picos de consumo y ajusta tus hábitos para ahorrar.</div></div>
+        </div>
+      </div>
+
+    </div><!-- /app-container -->
+
+    <!-- BOTTOM NAV (mobile) -->
+    <nav class="bottom-nav" id="bottomNav">
+      <button class="bottom-nav-btn active" data-tab="dashboard"><span class="nav-icon">📊</span>Dashboard</button>
+      <button class="bottom-nav-btn" data-tab="registro"><span class="nav-icon">📝</span>Registro</button>
+      <button class="bottom-nav-btn" data-tab="graficas"><span class="nav-icon">📈</span>Gráficas</button>
+      <button class="bottom-nav-btn" data-tab="historial"><span class="nav-icon">📋</span>Historial</button>
+      <button class="bottom-nav-btn" data-tab="gamificacion"><span class="nav-icon">🏆</span>Racha</button>
+      <button class="bottom-nav-btn" data-tab="consejos"><span class="nav-icon">💡</span>Tips</button>
+    </nav>
+  </div><!-- /app-wrapper -->
+
+  <!-- TOAST -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- DELETE MODAL -->
+  <div class="modal-overlay" id="deleteModal">
+    <div class="modal-content">
+      <div class="modal-title">⚠️ Confirmar Eliminación</div>
+      <p style="font-size:0.78rem;color:var(--text-secondary);">¿Estás seguro de que deseas eliminar esta lectura? Esta acción no se puede deshacer.</p>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="btnCancelDelete">Cancelar</button>
+        <button class="btn-danger" id="btnConfirmDelete" style="padding:10px 20px;">Eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==============================
+    // FIREBASE INIT
+    // ==============================
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID",
+      measurementId: "YOUR_MEASUREMENT_ID"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // Enable offline persistence
+    db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+
+    // ==============================
+    // CONSTANTS
+    // ==============================
+    const TARIFAS = { '1': 681, '2': 808, '3': 749.44, '4': 1025, '5': 1156 };
+    const CARGO_FIJO = 8500;
+    const IVA = 0.19;
+
+    // ==============================
+    // STATE
+    // ==============================
+    let currentUser = null;
+    let allLecturas = [];
+    let selectedTurno = 'PM';
+    let deleteDocId = null;
+    let chartInstances = {};
+    let unsubscribeLecturas = null;
+    let userConfig = { estrato: 3, meta_kwh_mes: 200, limite_factura_pesos: 150000, factura_real_kwh: 0, factura_real_cop: 0, lectura_anterior: 0, dia_corte: 15, tasa_seguridad: 16000 };
+
+    // ==============================
+    // HELPERS
+    // ==============================
+    function userPath() { return `users/${currentUser.uid}`; }
+
+    function todayStr() {
+      const d = new Date();
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    function formatDate(s) { const p = s.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
+
+    function formatCurrency(n) {
+      return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+    }
+
+    function fmt(n, d = 2) { return Number(n).toFixed(d); }
+
+    function getMonthStr(s) { return s.substring(0, 7); }
+
+    function getMonthName(ms) {
+      const parts = ms.split('-');
+      return ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][parseInt(parts[1]) - 1] + ' ' + parts[0];
+    }
+
+    function getDaysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
+
+    function getWeekStart(ds) {
+      const d = new Date(ds + 'T12:00:00');
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+      const mon = new Date(d); mon.setDate(diff);
+      return mon.getFullYear() + '-' + String(mon.getMonth() + 1).padStart(2, '0') + '-' + String(mon.getDate()).padStart(2, '0');
+    }
+
+    function showToast(msg, type = 'info') {
+      const c = document.getElementById('toastContainer');
+      const t = document.createElement('div');
+      t.className = `toast alert-${type}`;
+      t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(() => t.remove(), 4000);
+    }
+
+    // ==============================
+    // ANIMATED COUNTERS
+    // ==============================
+    function animateValue(el, start, end, dur = 800) {
+      if (isNaN(end) || end === null) { el.textContent = '--'; return; }
+      const t0 = performance.now();
+      const dec = (String(end).includes('.') || Math.abs(end) < 100) ? 2 : 0;
+      function tick(t) {
+        const p = Math.min((t - t0) / dur, 1);
+        const e = 1 - Math.pow(1 - p, 3);
+        el.textContent = fmt(start + (end - start) * e, dec);
+        if (p < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
+
+    function animateCurrency(el, start, end, dur = 800) {
+      if (isNaN(end) || end === null) { el.textContent = '--'; return; }
+      const t0 = performance.now();
+      function tick(t) {
+        const p = Math.min((t - t0) / dur, 1);
+        const e = 1 - Math.pow(1 - p, 3);
+        el.textContent = formatCurrency(start + (end - start) * e);
+        if (p < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
+
+    // ==============================
+    // AUTH — GOOGLE LOGIN
+    // ==============================
+    const provider = new firebase.auth.GoogleAuthProvider();
+
+    document.getElementById('btnGoogleLogin').addEventListener('click', () => {
+      document.getElementById('loginButtons').style.display = 'none';
+      document.getElementById('loginLoading').classList.add('active');
+
+      auth.signInWithPopup(provider).catch(err => {
+        console.error('Login error:', err);
+        showToast('Error al iniciar sesión: ' + err.message, 'danger');
+        document.getElementById('loginButtons').style.display = 'block';
+        document.getElementById('loginLoading').classList.remove('active');
+      });
+    });
+
+    document.getElementById('btnLogout').addEventListener('click', () => {
+      auth.signOut();
+    });
+
+    // Auth state observer
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        currentUser = user;
+        showApp(user);
+      } else {
+        currentUser = null;
+        hideApp();
+      }
+    });
+
+    function showApp(user) {
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('appWrapper').classList.add('active');
+
+      // Set user info
+      document.getElementById('userAvatar').src = user.photoURL || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23334" width="100" height="100"/><text x="50" y="60" text-anchor="middle" fill="%2300e5ff" font-size="40">' + (user.displayName || 'U')[0].toUpperCase() + '</text></svg>';
+      document.getElementById('userName').textContent = (user.displayName || 'Usuario').split(' ')[0];
+      document.getElementById('userEmail').textContent = user.email;
+
+      loadConfig();
+      startRealtimeListener();
+      startFacturasListener();
+    }
+
+    function hideApp() {
+      document.getElementById('loginScreen').classList.remove('hidden');
+      document.getElementById('appWrapper').classList.remove('active');
+      document.getElementById('loginButtons').style.display = 'block';
+      document.getElementById('loginLoading').classList.remove('active');
+
+      // Cleanup listener
+      if (unsubscribeLecturas) {
+        unsubscribeLecturas();
+        unsubscribeLecturas = null;
+      }
+      if (unsubscribeFacturas) {
+        unsubscribeFacturas();
+        unsubscribeFacturas = null;
+      }
+
+      allLecturas = [];
+      allFacturas = [];
+
+      // Destroy all charts
+      Object.values(chartInstances).forEach(c => c && c.destroy());
+      chartInstances = {};
+    }
+
+    // ==============================
+    // USER MENU DROPDOWN
+    // ==============================
+    document.getElementById('userMenu').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('userDropdown').classList.toggle('active');
+    });
+
+    document.addEventListener('click', () => {
+      document.getElementById('userDropdown').classList.remove('active');
+    });
+
+    document.getElementById('btnEstratoDropdown').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const bar = document.getElementById('estratoBar');
+      bar.style.display = bar.style.display === 'none' ? 'flex' : 'none';
+      document.getElementById('userDropdown').classList.remove('active');
+    });
+
+    // ==============================
+    // CONFIG
+    // ==============================
+    function loadConfig() {
+      if (!currentUser) return;
+
+      const localKey = `aire_config_${currentUser.uid}`;
+      const saved = localStorage.getItem(localKey);
+      if (saved) {
+        try { Object.assign(userConfig, JSON.parse(saved)); } catch (_e) { /* ignore */ }
+      }
+
+      applyConfigUI();
+
+      db.doc(userPath()).collection('config').doc('settings').get().then(doc => {
+        if (doc.exists) {
+          Object.assign(userConfig, doc.data());
+          localStorage.setItem(localKey, JSON.stringify(userConfig));
+          applyConfigUI();
+        }
+      }).catch(() => {});
+    }
+
+    function applyConfigUI() {
+      document.getElementById('estratoSelect').value = userConfig.estrato >= 5 ? '5' : String(userConfig.estrato);
+      document.getElementById('inputMetaKwh').value = userConfig.meta_kwh_mes;
+      document.getElementById('inputLimiteFactura').value = userConfig.limite_factura_pesos;
+      document.getElementById('inputFacturaRealKwh').value = userConfig.factura_real_kwh || 0;
+      document.getElementById('inputFacturaRealCop').value = userConfig.factura_real_cop || 0;
+      document.getElementById('inputLecturaAnterior').value = userConfig.lectura_anterior || 0;
+      document.getElementById('inputDiaCorte').value = userConfig.dia_corte || 15;
+      document.getElementById('inputTasaSeguridad').value = userConfig.tasa_seguridad !== undefined ? userConfig.tasa_seguridad : 16000;
+    }
+
+    function saveConfig() {
+      if (!currentUser) return;
+      const est = document.getElementById('estratoSelect').value;
+      userConfig.estrato = est === '5' ? 5 : parseInt(est);
+      userConfig.meta_kwh_mes = parseInt(document.getElementById('inputMetaKwh').value) || 200;
+      userConfig.limite_factura_pesos = parseInt(document.getElementById('inputLimiteFactura').value) || 150000;
+      userConfig.factura_real_kwh = parseFloat(document.getElementById('inputFacturaRealKwh').value) || 0;
+      userConfig.factura_real_cop = parseInt(document.getElementById('inputFacturaRealCop').value) || 0;
+      userConfig.lectura_anterior = parseFloat(document.getElementById('inputLecturaAnterior').value) || 0;
+      userConfig.dia_corte = parseInt(document.getElementById('inputDiaCorte').value) || 15;
+      userConfig.tasa_seguridad = parseInt(document.getElementById('inputTasaSeguridad').value) !== NaN ? parseInt(document.getElementById('inputTasaSeguridad').value) : 16000;
+      if (userConfig.dia_corte < 1) userConfig.dia_corte = 1;
+      if (userConfig.dia_corte > 28) userConfig.dia_corte = 28;
+
+      const localKey = `aire_config_${currentUser.uid}`;
+      localStorage.setItem(localKey, JSON.stringify(userConfig));
+
+      db.doc(userPath()).collection('config').doc('settings').set(userConfig).then(() => {
+        showToast('Configuración guardada ✅', 'success');
+        refreshDashboard();
+      }).catch(() => showToast('Guardado localmente (sin conexión)', 'warning'));
+    }
+
+    // ==============================
+    // CONNECTION STATUS
+    // ==============================
+    function updateConnection() {
+      const dot = document.getElementById('statusDot');
+      if (navigator.onLine) { dot.classList.remove('offline'); dot.title = 'En línea'; }
+      else { dot.classList.add('offline'); dot.title = 'Sin conexión'; }
+    }
+
+    window.addEventListener('online', updateConnection);
+    window.addEventListener('offline', updateConnection);
+    updateConnection();
+
+    // ==============================
+    // TAB NAVIGATION (both top & bottom)
+    // ==============================
+    function switchTab(tabName) {
+      document.querySelectorAll('.nav-tab, .bottom-nav-btn').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+      document.querySelectorAll(`[data-tab="${tabName}"]`).forEach(t => t.classList.add('active'));
+      document.getElementById('tab-' + tabName).classList.add('active');
+
+      if (tabName === 'graficas') renderAllCharts();
+      if (tabName === 'historial') renderHistorial();
+
+      // Scroll to top on tab switch
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    document.querySelectorAll('.nav-tab, .bottom-nav-btn').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    // ==============================
+    // TURNO SELECTOR
+    // ==============================
+    document.querySelectorAll('.turno-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.turno-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedTurno = btn.dataset.turno;
+      });
+    });
+
+    // Default date
+    document.getElementById('inputFecha').value = todayStr();
+
+    // Auto turno by time
+    const hour = new Date().getHours();
+    if (hour < 14) {
+      selectedTurno = 'AM';
+      document.getElementById('btnAM').classList.add('active');
+      document.getElementById('btnPM').classList.remove('active');
+    }
+
+    // ==============================
+    // FORM SUBMIT
+    // ==============================
+    document.getElementById('lecturaForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!currentUser) return;
+
+      const fecha = document.getElementById('inputFecha').value;
+      const lectura = parseFloat(document.getElementById('inputLectura').value);
+      const nota = document.getElementById('inputNota').value.trim();
+
+      if (!fecha || isNaN(lectura) || lectura <= 0) {
+        showToast('Por favor ingresa una lectura válida', 'danger');
+        return;
+      }
+
+      const existing = allLecturas.find(l => l.fecha === fecha && l.turno === selectedTurno);
+      if (existing) {
+        showToast(`Ya existe lectura para ${formatDate(fecha)} turno ${selectedTurno}`, 'warning');
+        return;
+      }
+
+      // Calculate delta
+      const sorted = [...allLecturas].sort((a, b) => {
+        if (a.fecha === b.fecha) return a.turno === 'AM' ? -1 : 1;
+        return a.fecha.localeCompare(b.fecha);
+      });
+
+      let consumoDelta = 0;
+      if (sorted.length > 0) {
+        const last = sorted[sorted.length - 1].lectura_kwh;
+        consumoDelta = Math.max(0, lectura - last);
+      }
+
+      const btn = document.getElementById('btnRegistrar');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Guardando...';
+
+      try {
+        await db.doc(userPath()).collection('lecturas').add({
+          fecha,
+          turno: selectedTurno,
+          lectura_kwh: lectura,
+          consumo_delta: consumoDelta,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+          nota
+        });
+        showToast(`Lectura: ${lectura} kWh (Δ${fmt(consumoDelta)} kWh) ✅`, 'success');
+        document.getElementById('inputLectura').value = '';
+        document.getElementById('inputNota').value = '';
+      } catch (err) {
+        showToast('Error al guardar: ' + err.message, 'danger');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '⚡ REGISTRAR LECTURA';
+      }
+    });
+
+    // ==============================
+    // REALTIME LISTENER (per user)
+    // ==============================
+    function startRealtimeListener() {
+      if (!currentUser) return;
+      if (unsubscribeLecturas) unsubscribeLecturas();
+
+      unsubscribeLecturas = db.doc(userPath()).collection('lecturas')
+        .orderBy('fecha', 'asc')
+        .onSnapshot(snapshot => {
+          allLecturas = [];
+          snapshot.forEach(doc => allLecturas.push({ id: doc.id, ...doc.data() }));
+
+          allLecturas.sort((a, b) => {
+            if (a.fecha === b.fecha) return a.turno === 'AM' ? -1 : 1;
+            return a.fecha.localeCompare(b.fecha);
+          });
+
+          refreshDashboard();
+          updateLastReadingPreview();
+          renderHistorial();
+          checkAlerts();
+          updateStreak();
+          populateMonthFilter();
+
+          if (document.getElementById('tab-graficas').classList.contains('active')) renderAllCharts();
+        }, err => {
+          showToast('Error de conexión con la base de datos', 'danger');
+          console.error(err);
+        });
+    }
+
+    // ==============================
+    // DASHBOARD
+    // ==============================
+    // ==============================
+    // CONSUMO DEL PERÍODO (FÓRMULA)
+    // ==============================
+    function isLecturaAnteriorOutdated() {
+      const lecturaAnterior = parseFloat(userConfig.lectura_anterior) || 0;
+      if (lecturaAnterior <= 0 || allLecturas.length === 0) return false;
+
+      const diaCorte = userConfig.dia_corte || 15;
+      const now = new Date();
+      const diaHoy = now.getDate();
+      const mesActual = now.getMonth();
+      const anioActual = now.getFullYear();
+
+      let inicioCorte;
+      if (diaHoy >= diaCorte) {
+        inicioCorte = new Date(anioActual, mesActual, diaCorte);
+      } else {
+        inicioCorte = new Date(anioActual, mesActual - 1, diaCorte);
+      }
+
+      const yyyy = inicioCorte.getFullYear();
+      const mm = String(inicioCorte.getMonth() + 1).padStart(2, '0');
+      const dd = String(inicioCorte.getDate()).padStart(2, '0');
+      const inicioCorteStr = `${yyyy}-${mm}-${dd}`;
+
+      // Buscar lecturas registradas estrictamente antes de la fecha de inicio del corte
+      const lecturasPrevias = allLecturas.filter(l => l.fecha < inicioCorteStr);
+      if (lecturasPrevias.length === 0) return false;
+
+      // La lectura más reciente antes del corte
+      const lastPreCorte = lecturasPrevias[lecturasPrevias.length - 1];
+      return lecturaAnterior < lastPreCorte.lectura_kwh;
+    }
+
+    function calcularConsumoDelPeriodo() {
+      const lecturaAnterior = parseFloat(userConfig.lectura_anterior) || 0;
+      if (lecturaAnterior <= 0 || allLecturas.length === 0) return null;
+      if (isLecturaAnteriorOutdated()) return null;
+
+      const last = allLecturas[allLecturas.length - 1];
+      const lecturaActual = last.lectura_kwh;
+
+      return Math.max(0, (lecturaActual - lecturaAnterior) * 1);
+    }
+
+    function getDiasRestantesPeriodo() {
+      const diaCorte = userConfig.dia_corte || 15;
+      const now = new Date();
+      const diaHoy = now.getDate();
+      const mesActual = now.getMonth();
+      const anioActual = now.getFullYear();
+
+      let fechaCorte;
+      if (diaHoy < diaCorte) {
+        // El corte es este mes
+        fechaCorte = new Date(anioActual, mesActual, diaCorte);
+      } else {
+        // El corte es el próximo mes
+        fechaCorte = new Date(anioActual, mesActual + 1, diaCorte);
+      }
+
+      const diffMs = fechaCorte.getTime() - now.getTime();
+      return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+    }
+
+    function getDiasTranscurridosPeriodo() {
+      const diaCorte = userConfig.dia_corte || 15;
+      const now = new Date();
+      const diaHoy = now.getDate();
+      const mesActual = now.getMonth();
+      const anioActual = now.getFullYear();
+
+      let inicioCorte;
+      if (diaHoy >= diaCorte) {
+        inicioCorte = new Date(anioActual, mesActual, diaCorte);
+      } else {
+        inicioCorte = new Date(anioActual, mesActual - 1, diaCorte);
+      }
+
+      const diffMs = now.getTime() - inicioCorte.getTime();
+      return Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+    }
+
+    function refreshPeriodoCard() {
+      const placeholder = document.getElementById('periodoPlaceholder');
+      const content = document.getElementById('periodoContent');
+      const lecturaAnterior = parseFloat(userConfig.lectura_anterior) || 0;
+
+      if (lecturaAnterior <= 0 || allLecturas.length === 0) {
+        placeholder.innerHTML = `⚡ Configura tu <strong>lectura anterior</strong>, <strong>día de corte</strong> y <strong>consumo máximo</strong> para activar el control del período.<br>
+            <span class="config-hint" onclick="switchTab('gamificacion')">🏆 Ir a Configuración</span>`;
+        placeholder.classList.remove('hidden');
+        content.classList.add('hidden');
+        return;
+      }
+
+      if (isLecturaAnteriorOutdated()) {
+        const last = allLecturas[allLecturas.length - 1];
+        placeholder.innerHTML = `📅 <strong>¡Nuevo período de facturación!</strong><br>
+            Se ha iniciado un nuevo ciclo (Día de corte: ${userConfig.dia_corte || 15}). Por favor actualiza la <strong>Lectura Anterior</strong> en Configuración con el valor de tu factura actual para iniciar las mediciones del nuevo período. (Último registro actual: ${fmt(last.lectura_kwh, 1)} kWh).<br>
+            <span class="config-hint" onclick="switchTab('gamificacion')">🏆 Ir a Configuración</span>`;
+        placeholder.classList.remove('hidden');
+        content.classList.add('hidden');
+        return;
+      }
+
+      placeholder.classList.add('hidden');
+      content.classList.remove('hidden');
+
+      const consumo = calcularConsumoDelPeriodo();
+      if (consumo === null) return;
+
+      const meta = userConfig.meta_kwh_mes || 200;
+      const pct = Math.min((consumo / meta) * 100, 150);
+      const diasRestantes = getDiasRestantesPeriodo();
+      const diasTranscurridos = getDiasTranscurridosPeriodo();
+      const totalDias = diasTranscurridos + diasRestantes;
+      const last = allLecturas[allLecturas.length - 1];
+      const lecturaActual = last.lectura_kwh;
+      const restante = Math.max(0, meta - consumo);
+      const promDiario = diasTranscurridos > 0 ? consumo / diasTranscurridos : 0;
+      const maxDiarioPermitido = diasRestantes > 0 ? restante / diasRestantes : 0;
+      const proyeccion = promDiario * totalDias;
+
+      // Update values
+      document.getElementById('periodoValor').textContent = fmt(consumo, 1);
+      document.getElementById('periodoMax').textContent = meta;
+      document.getElementById('periodoLectAnterior').textContent = fmt(lecturaAnterior, 1) + ' kWh';
+      document.getElementById('periodoLectActual').textContent = fmt(lecturaActual, 1) + ' kWh';
+      document.getElementById('periodoRestante').textContent = fmt(restante, 1) + ' kWh';
+      document.getElementById('periodoDiasRestantes').textContent = diasRestantes + ' días';
+      document.getElementById('periodoPromDiario').textContent = fmt(promDiario, 2) + ' kWh/día';
+      document.getElementById('periodoMaxDiario').textContent = fmt(maxDiarioPermitido, 2) + ' kWh/día';
+
+      // Percentage
+      const pctEl = document.getElementById('periodoPct');
+      pctEl.textContent = fmt(pct, 0) + '%';
+
+      // Badge and colors
+      const badge = document.getElementById('periodoBadge');
+      const bar = document.getElementById('periodoProgressBar');
+      bar.style.width = Math.min(pct, 100) + '%';
+
+      if (pct > 100) {
+        badge.className = 'periodo-badge danger';
+        badge.textContent = '🔴 ¡EXCEDIDO!';
+        pctEl.style.color = 'var(--accent-red)';
+        bar.className = 'progress-bar-fill over';
+      } else if (pct > 85) {
+        badge.className = 'periodo-badge danger';
+        badge.textContent = '🔴 ¡Crítico!';
+        pctEl.style.color = 'var(--accent-red)';
+        bar.className = 'progress-bar-fill over';
+      } else if (pct > 60) {
+        badge.className = 'periodo-badge warn';
+        badge.textContent = '🟡 Precaución';
+        pctEl.style.color = 'var(--accent-amber)';
+        bar.className = 'progress-bar-fill warning';
+      } else {
+        badge.className = 'periodo-badge ok';
+        badge.textContent = '🟢 En control';
+        pctEl.style.color = 'var(--accent-green)';
+        bar.className = 'progress-bar-fill';
+      }
+
+      // Projection
+      const proyEl = document.getElementById('periodoProyeccion');
+      if (proyeccion > meta) {
+        proyEl.innerHTML = `<span style="color:var(--accent-red); font-weight:700;">⚠️ ~${fmt(proyeccion, 0)} kWh</span> <span style="font-size:0.7rem; color:var(--text-secondary);">— Superarás tu máximo por <strong style="color:var(--accent-red);">${fmt(proyeccion - meta, 1)} kWh</strong></span>`;
+      } else {
+        proyEl.innerHTML = `<span style="color:var(--accent-green); font-weight:700;">✅ ~${fmt(proyeccion, 0)} kWh</span> <span style="font-size:0.7rem; color:var(--text-secondary);">— Dentro del máximo</span>`;
+      }
+    }
+
+    function refreshDashboard() {
+      if (allLecturas.length === 0) return;
+
+      const today = todayStr();
+      const now = new Date();
+      const currentMonth = getMonthStr(today);
+      const weekStart = getWeekStart(today);
+
+      const last = allLecturas[allLecturas.length - 1];
+      animateValue(document.getElementById('metricLecturaActual'), 0, last.lectura_kwh, 1000);
+
+      const todayR = allLecturas.filter(l => l.fecha === today);
+      const consumoHoy = todayR.reduce((s, l) => s + (l.consumo_delta || 0), 0);
+      animateValue(document.getElementById('metricConsumoHoy'), 0, consumoHoy);
+
+      const weekR = allLecturas.filter(l => l.fecha >= weekStart && l.fecha <= today);
+      const consumoSemana = weekR.reduce((s, l) => s + (l.consumo_delta || 0), 0);
+      animateValue(document.getElementById('metricConsumoSemana'), 0, consumoSemana);
+
+      // CONSUMO MES: usa la fórmula del período si está configurado, si no usa deltas
+      const consumoPeriodo = calcularConsumoDelPeriodo();
+      const monthR = allLecturas.filter(l => getMonthStr(l.fecha) === currentMonth);
+      const consumoMesDelta = monthR.reduce((s, l) => s + (l.consumo_delta || 0), 0);
+      const consumoMes = consumoPeriodo !== null ? consumoPeriodo : consumoMesDelta;
+      animateValue(document.getElementById('metricConsumoMes'), 0, consumoMes);
+
+      // Prev month
+      const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const prevMs = prev.getFullYear() + '-' + String(prev.getMonth() + 1).padStart(2, '0');
+      const prevR = allLecturas.filter(l => getMonthStr(l.fecha) === prevMs);
+      const consumoPrevLogs = prevR.reduce((s, l) => s + (l.consumo_delta || 0), 0);
+      const consumoPrev = (parseFloat(userConfig.factura_real_kwh) || 0) > 0 
+        ? parseFloat(userConfig.factura_real_kwh) 
+        : consumoPrevLogs;
+        
+      const deltaEl = document.getElementById('metricConsumoMesDelta');
+      if (consumoPrev > 0) {
+        const pct = (consumoMes - consumoPrev) / consumoPrev * 100;
+        deltaEl.className = 'metric-delta ' + (pct > 0 ? 'up' : 'down');
+        deltaEl.textContent = pct > 0 ? `▲ +${fmt(pct,1)}% vs anterior` : `▼ ${fmt(pct,1)}% vs anterior`;
+      } else { deltaEl.textContent = ''; }
+
+      // Bill
+      const ek = userConfig.estrato >= 5 ? '5' : String(userConfig.estrato);
+      const defaultTarifa = TARIFAS[ek] || TARIFAS['3'];
+      const realKwh = parseFloat(userConfig.factura_real_kwh) || 0;
+      const realCop = parseFloat(userConfig.factura_real_cop) || 0;
+      const tasaSeguridad = userConfig.tasa_seguridad !== undefined ? parseFloat(userConfig.tasa_seguridad) : 16000;
+      
+      let tarifa = defaultTarifa;
+      if (realKwh > 0 && realCop > tasaSeguridad) {
+        tarifa = (realCop - tasaSeguridad) / realKwh;
+      }
+
+      const total = consumoMes * tarifa;
+      animateCurrency(document.getElementById('metricFactura'), 0, total);
+
+      // Projection: prefer billing period data when available, fallback to calendar month
+      let proyKwh, promD;
+      if (consumoPeriodo !== null) {
+        // Use billing period projection (same logic as Consumo del Período card)
+        const diasTranscurridos = getDiasTranscurridosPeriodo();
+        const diasRestantes = getDiasRestantesPeriodo();
+        const totalDiasPeriodo = diasTranscurridos + diasRestantes;
+        promD = diasTranscurridos > 0 ? consumoPeriodo / diasTranscurridos : 0;
+        proyKwh = promD * totalDiasPeriodo;
+      } else {
+        // Fallback: calendar month projection
+        const dim = getDaysInMonth(now.getFullYear(), now.getMonth() + 1);
+        const uniqueDays = [...new Set(monthR.map(l => l.fecha))];
+        promD = uniqueDays.length > 0 ? consumoMesDelta / uniqueDays.length : 0;
+        proyKwh = promD * dim;
+      }
+      animateValue(document.getElementById('metricProyeccion'), 0, proyKwh);
+      animateValue(document.getElementById('metricPromDiario'), 0, promD);
+
+      // Proyección vs Anterior
+      const proyVsAntEl = document.getElementById('metricProyeccionDelta');
+      const proyVsAntSub = document.getElementById('metricProyeccionDeltaLabel');
+      if (proyVsAntEl && proyVsAntSub) {
+        if (consumoPrev > 0) {
+          const pctProy = (proyKwh - consumoPrev) / consumoPrev * 100;
+          proyVsAntEl.textContent = (pctProy > 0 ? '▲ +' : '▼ ') + Math.abs(pctProy).toFixed(1) + '%';
+          proyVsAntEl.className = 'metric-value ' + (pctProy > 0 ? 'red' : 'green');
+          proyVsAntSub.textContent = `~${fmt(proyKwh, 0)} vs ${fmt(consumoPrev, 0)} kWh`;
+        } else {
+          proyVsAntEl.textContent = '--';
+          proyVsAntEl.className = 'metric-value';
+          proyVsAntSub.textContent = 'Sin factura anterior';
+        }
+      }
+
+      // Bill Proyectada
+      const totalProyectado = proyKwh * tarifa;
+      animateCurrency(document.getElementById('metricFacturaProyectada'), 0, totalProyectado);
+
+      // Bill Total con Tasa de Seguridad
+      const totalConTasa = totalProyectado + tasaSeguridad;
+      animateCurrency(document.getElementById('metricFacturaTotalTasa'), 0, totalConTasa);
+
+      // Meta
+      const meta = userConfig.meta_kwh_mes || 200;
+      const metaPct = Math.min((consumoMes / meta) * 100, 150);
+      document.getElementById('metaLabel').textContent = `${fmt(consumoMes,1)} / ${meta} kWh`;
+      document.getElementById('metaPercent').textContent = `${fmt(metaPct,0)}%`;
+      const bar = document.getElementById('metaProgressBar');
+      bar.style.width = Math.min(metaPct, 100) + '%';
+      bar.className = 'progress-bar-fill' + (metaPct > 100 ? ' over' : metaPct > 60 ? ' warning' : '');
+
+      // Comparativa Factura Anterior
+      const compPlaceholder = document.getElementById('comparacionPlaceholder');
+      const compContent = document.getElementById('comparacionContent');
+      
+      if (realKwh > 0 && realCop > 0) {
+        compPlaceholder.classList.add('hidden');
+        compContent.classList.remove('hidden');
+        
+        document.getElementById('compKwhAnterior').textContent = `${fmt(realKwh, 1)} kWh`;
+        document.getElementById('compCopAnterior').textContent = formatCurrency(realCop);
+        
+        document.getElementById('compKwhActual').textContent = `${fmt(proyKwh, 1)} kWh`;
+        document.getElementById('compCopActual').textContent = formatCurrency(totalConTasa);
+        
+        // Kwh delta comparison
+        const diffKwh = proyKwh - realKwh;
+        const pctKwh = (diffKwh / realKwh) * 100;
+        const kwhBadge = document.getElementById('compKwhBadge');
+        if (pctKwh > 0) {
+          kwhBadge.innerHTML = `<span class="badge-turno badge-pm" style="background:rgba(255, 61, 90, 0.12); color:var(--accent-red); font-size:0.65rem; border:1px solid rgba(255,61,90,0.25);">▲ +${fmt(pctKwh, 1)}% mayor</span>`;
+        } else {
+          kwhBadge.innerHTML = `<span class="badge-turno badge-am" style="background:rgba(127, 255, 0, 0.12); color:var(--accent-green); font-size:0.65rem; border:1px solid rgba(127,255,0,0.25);">▼ ${fmt(Math.abs(pctKwh), 1)}% menor</span>`;
+        }
+        
+        // Cop delta comparison
+        const diffCop = totalConTasa - realCop;
+        const pctCop = (diffCop / realCop) * 100;
+        const copBadge = document.getElementById('compCopBadge');
+        if (pctCop > 0) {
+          copBadge.innerHTML = `<span class="badge-turno badge-pm" style="background:rgba(255, 61, 90, 0.12); color:var(--accent-red); font-size:0.65rem; border:1px solid rgba(255,61,90,0.25);">▲ +${fmt(pctCop, 1)}% mayor</span>`;
+        } else {
+          copBadge.innerHTML = `<span class="badge-turno badge-am" style="background:rgba(127, 255, 0, 0.12); color:var(--accent-green); font-size:0.65rem; border:1px solid rgba(127,255,0,0.25);">▼ ${fmt(Math.abs(pctCop), 1)}% menor</span>`;
+        }
+      } else {
+        compPlaceholder.classList.remove('hidden');
+        compContent.classList.add('hidden');
+      }
+
+      // Refresh Periodo Card
+      refreshPeriodoCard();
+
+      renderQuickChart();
+
+      // Sincronizar Calculadora de metas
+      const calcMetaEl = document.getElementById('calcMeta');
+      const calcActualEl = document.getElementById('calcActual');
+      const calcDiasEl = document.getElementById('calcDias');
+
+      if (calcMetaEl && document.activeElement !== calcMetaEl && (!calcMetaEl.value || calcMetaEl.value == userConfig.meta_kwh_mes)) {
+        calcMetaEl.value = userConfig.meta_kwh_mes || 200;
+      }
+      if (calcActualEl && document.activeElement !== calcActualEl) {
+        calcActualEl.value = (consumoMes !== null ? consumoMes : 0).toFixed(1);
+      }
+      if (calcDiasEl && document.activeElement !== calcDiasEl) {
+        calcDiasEl.value = getDiasRestantesPeriodo() || 15;
+      }
+      updateCalculator();
+    }
+
+    function updateLastReadingPreview() {
+      const el = document.getElementById('lastReadingPreview');
+      if (allLecturas.length === 0) { el.textContent = 'No hay lecturas previas. Esta será tu primera lectura.'; return; }
+      const l = allLecturas[allLecturas.length - 1];
+      el.innerHTML = `Última lectura: <strong>${fmt(l.lectura_kwh)} kWh</strong> — ${formatDate(l.fecha)} turno ${l.turno}`;
+    }
+
+    function updateCalculator() {
+      const meta = parseFloat(document.getElementById('calcMeta').value) || 0;
+      const actual = parseFloat(document.getElementById('calcActual').value) || 0;
+      const dias = parseInt(document.getElementById('calcDias').value) || 0;
+
+      const recomendadoEl = document.getElementById('calcDiarioRecomendado');
+      const mensajeEl = document.getElementById('calcMensaje');
+      const equivEl = document.getElementById('calcEquivalencias');
+
+      if (!recomendadoEl || !mensajeEl || !equivEl) return;
+
+      if (dias <= 0) {
+        recomendadoEl.textContent = '--';
+        mensajeEl.textContent = 'Ingresa un número de días válido mayor a 0.';
+        equivEl.style.display = 'none';
+        return;
+      }
+
+      const restante = meta - actual;
+      if (restante <= 0) {
+        recomendadoEl.textContent = '0.00';
+        recomendadoEl.className = 'metric-value red';
+        mensajeEl.innerHTML = `<span style="color:var(--accent-red); font-weight:700;">⚠️ Meta alcanzada o excedida.</span> Ya consumiste tu meta máxima de ${meta} kWh.`;
+        equivEl.style.display = 'none';
+        return;
+      }
+
+      const diario = restante / dias;
+      recomendadoEl.textContent = diario.toFixed(2);
+
+      // Color coding recomendación
+      if (diario > 10) {
+        recomendadoEl.className = 'metric-value red';
+      } else if (diario > 6) {
+        recomendadoEl.className = 'metric-value amber';
+      } else {
+        recomendadoEl.className = 'metric-value green';
+      }
+
+      mensajeEl.innerHTML = `Tienes un saldo restante de <strong>${restante.toFixed(1)} kWh</strong> para consumir durante los próximos <strong>${dias} días</strong>.`;
+
+      // Equivalencias de consumo
+      document.getElementById('eqAC').textContent = `${(diario / 1.0).toFixed(1)}h`;
+      document.getElementById('eqVentilador').textContent = `${(diario / 0.08).toFixed(1)}h`;
+      document.getElementById('eqTV').textContent = `${(diario / 0.1).toFixed(1)}h`;
+      document.getElementById('eqBombillos').textContent = `${(diario / 0.05).toFixed(1)}h`;
+      
+      equivEl.style.display = 'block';
+    }
+
+    // ==============================
+    // ALERTS
+    // ==============================
+    function checkAlerts() {
+      const c = document.getElementById('alertsContainer');
+      c.innerHTML = '';
+      if (allLecturas.length < 3) return;
+
+      const today = todayStr();
+      const currentMonth = getMonthStr(today);
+
+      // ====== ALERTAS DEL PERÍODO DE FACTURACIÓN ======
+      const lecturaAnterior = parseFloat(userConfig.lectura_anterior) || 0;
+      if (lecturaAnterior <= 0) {
+        c.innerHTML += `<div class="alert-banner alert-info">ℹ️ <strong>Configura tu lectura anterior</strong>&nbsp; Ve a <strong>🏆 Racha / Config</strong> e ingresa la lectura de tu factura, el día de corte y el consumo máximo para activar el control del período.</div>`;
+      } else if (isLecturaAnteriorOutdated()) {
+        c.innerHTML += `<div class="alert-banner alert-info">📅 <strong>Nuevo ciclo de facturación</strong>&nbsp; Ya pasó el día de corte (${userConfig.dia_corte || 15}). Recuerda actualizar la <strong>Lectura Anterior</strong> en configuración con la de tu factura más reciente para activar el control de este período.</div>`;
+      } else {
+        const consumoPeriodo = calcularConsumoDelPeriodo();
+        if (consumoPeriodo !== null) {
+          const meta = userConfig.meta_kwh_mes || 200;
+          const pct = (consumoPeriodo / meta) * 100;
+          const diasRestantes = getDiasRestantesPeriodo();
+          const diasTranscurridos = getDiasTranscurridosPeriodo();
+          const totalDias = diasTranscurridos + diasRestantes;
+          const restante = Math.max(0, meta - consumoPeriodo);
+          const promDiario = diasTranscurridos > 0 ? consumoPeriodo / diasTranscurridos : 0;
+          const maxDiarioPermitido = diasRestantes > 0 ? restante / diasRestantes : 0;
+          const proyeccion = promDiario * totalDias;
+
+          // Alerta: Excedido (>100%)
+          if (pct > 100) {
+            c.innerHTML += `<div class="alert-banner alert-danger">🚨 <strong>¡CONSUMO EXCEDIDO!</strong>&nbsp; Llevas ${fmt(consumoPeriodo, 1)} kWh de ${meta} kWh máximo. ¡Ya superaste tu límite por ${fmt(consumoPeriodo - meta, 1)} kWh!</div>`;
+          }
+          // Alerta: Crítico (>85%)
+          else if (pct > 85) {
+            c.innerHTML += `<div class="alert-banner alert-danger">🔴 <strong>¡Consumo crítico!</strong>&nbsp; Llevas ${fmt(consumoPeriodo, 1)} kWh (${fmt(pct, 0)}%) de ${meta} kWh. Solo te quedan ${fmt(restante, 1)} kWh para ${diasRestantes} días.</div>`;
+          }
+          // Alerta: Precaución (>60%)
+          else if (pct > 60) {
+            c.innerHTML += `<div class="alert-banner alert-warning">🟡 <strong>Precaución</strong>&nbsp; Vas al ${fmt(pct, 0)}% de tu máximo (${fmt(consumoPeriodo, 1)} / ${meta} kWh). Reduce consumo para no pasarte.</div>`;
+          }
+
+          // Alerta: Proyección supera máximo
+          if (proyeccion > meta && pct <= 100) {
+            c.innerHTML += `<div class="alert-banner alert-warning">📊 <strong>¡Alerta de proyección!</strong>&nbsp; A este ritmo (${fmt(promDiario, 1)} kWh/día) llegarás a ~${fmt(proyeccion, 0)} kWh. Supera tu máximo por ${fmt(proyeccion - meta, 1)} kWh. Máx. diario permitido: ${fmt(maxDiarioPermitido, 1)} kWh/día.</div>`;
+          }
+
+          // Alerta: Consumo diario > permitido
+          const consumoHoy = allLecturas.filter(l => l.fecha === today).reduce((s, l) => s + (l.consumo_delta || 0), 0);
+          if (consumoHoy > maxDiarioPermitido && maxDiarioPermitido > 0 && consumoHoy > 0) {
+            c.innerHTML += `<div class="alert-banner alert-warning">⚡ <strong>Consumo diario alto</strong>&nbsp; Hoy consumiste ${fmt(consumoHoy, 1)} kWh. Tu máximo diario para no pasarte es ${fmt(maxDiarioPermitido, 1)} kWh/día.</div>`;
+          }
+        }
+      }
+
+      // ====== ALERTAS EXISTENTES ======
+      // High consumption vs average
+      const allD = allLecturas.filter(l => l.consumo_delta > 0).map(l => l.consumo_delta);
+      const avg = allD.reduce((s, v) => s + v, 0) / allD.length;
+      const todayTotal = allLecturas.filter(l => l.fecha === today).reduce((s, l) => s + (l.consumo_delta || 0), 0);
+
+      if (todayTotal > avg * 1.2 && todayTotal > 0) {
+        c.innerHTML += `<div class="alert-banner alert-warning">⚠️ <strong>¡Consumo elevado!</strong>&nbsp; ${fmt(todayTotal)} kWh hoy — supera tu promedio de ${fmt(avg)} kWh (+20%).</div>`;
+      }
+
+      // No reading 12h+
+      const last = allLecturas[allLecturas.length - 1];
+      if (last.timestamp) {
+        const lt = last.timestamp.toDate ? last.timestamp.toDate() : new Date(last.timestamp);
+        const hrs = (Date.now() - lt.getTime()) / 3600000;
+        if (hrs > 12) {
+          c.innerHTML += `<div class="alert-banner alert-info">🕐 <strong>Recuerda registrar.</strong>&nbsp; Han pasado ${Math.floor(hrs)} horas desde tu último registro.</div>`;
+        }
+      }
+
+      // Bill limit
+      const monthR = allLecturas.filter(l => getMonthStr(l.fecha) === currentMonth);
+      const consumoMes = monthR.reduce((s, l) => s + (l.consumo_delta || 0), 0);
+      const ek = userConfig.estrato >= 5 ? '5' : String(userConfig.estrato);
+      const defaultTarifa = TARIFAS[ek] || TARIFAS['3'];
+      const realKwh = parseFloat(userConfig.factura_real_kwh) || 0;
+      const realCop = parseFloat(userConfig.factura_real_cop) || 0;
+      const tasaSeguridad = userConfig.tasa_seguridad !== undefined ? parseFloat(userConfig.tasa_seguridad) : 16000;
+      
+      let tarifa = defaultTarifa;
+      if (realKwh > 0 && realCop > tasaSeguridad) {
+        tarifa = (realCop - tasaSeguridad) / realKwh;
+      }
+      
+      const factura = (consumoMes * tarifa) + tasaSeguridad;
+      if (factura > userConfig.limite_factura_pesos) {
+        c.innerHTML += `<div class="alert-banner alert-danger">🚨 <strong>¡Alerta factura!</strong>&nbsp; Estimada ${formatCurrency(factura)} — supera límite de ${formatCurrency(userConfig.limite_factura_pesos)}.</div>`;
+      }
+    }
+
+    // ==============================
+    // STREAK
+    // ==============================
+    function updateStreak() {
+      const uniqueDays = [...new Set(allLecturas.map(l => l.fecha))].sort().reverse();
+      let streak = 0;
+      const today = new Date();
+      for (let i = 0; i < uniqueDays.length; i++) {
+        const exp = new Date(today);
+        exp.setDate(today.getDate() - i);
+        const es = exp.getFullYear() + '-' + String(exp.getMonth() + 1).padStart(2, '0') + '-' + String(exp.getDate()).padStart(2, '0');
+        if (uniqueDays.includes(es)) streak++;
+        else break;
+      }
+      document.getElementById('streakNumber').textContent = streak;
+      document.getElementById('metricRacha').textContent = streak;
+      document.getElementById('badge7').className = 'badge-item ' + (streak >= 7 ? 'earned' : 'locked');
+      document.getElementById('badge15').className = 'badge-item ' + (streak >= 15 ? 'earned' : 'locked');
+      document.getElementById('badge30').className = 'badge-item ' + (streak >= 30 ? 'earned' : 'locked');
+    }
+
+    // ==============================
+    // HISTORIAL
+    // ==============================
+    function renderHistorial() {
+      const fm = document.getElementById('filterMes').value;
+      const tbody = document.getElementById('historialBody');
+      const empty = document.getElementById('emptyHistorial');
+
+      let filtered = [...allLecturas].reverse();
+      if (fm) filtered = filtered.filter(l => getMonthStr(l.fecha) === fm);
+
+      if (filtered.length === 0) { tbody.innerHTML = ''; empty.classList.remove('hidden'); return; }
+      empty.classList.add('hidden');
+
+      tbody.innerHTML = filtered.map(l => `
+        <tr>
+          <td>${formatDate(l.fecha)}</td>
+          <td><span class="badge-turno badge-${l.turno.toLowerCase()}">${l.turno}</span></td>
+          <td style="font-weight:600">${fmt(l.lectura_kwh)}</td>
+          <td class="text-cyan">${fmt(l.consumo_delta)} kWh</td>
+          <td class="text-muted">${l.nota || '—'}</td>
+          <td><button class="btn-danger" onclick="promptDelete('${l.id}')">✕</button></td>
+        </tr>`).join('');
+    }
+
+    function populateMonthFilter() {
+      const sel = document.getElementById('filterMes');
+      const months = [...new Set(allLecturas.map(l => getMonthStr(l.fecha)))].sort().reverse();
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">Todos los meses</option>';
+      months.forEach(m => { sel.innerHTML += `<option value="${m}" ${m === cur ? 'selected' : ''}>${getMonthName(m)}</option>`; });
+    }
+
+    document.getElementById('filterMes').addEventListener('change', renderHistorial);
+
+    // ==============================
+    // DELETE
+    // ==============================
+    function promptDelete(id) {
+      deleteDocId = id;
+      document.getElementById('deleteModal').classList.add('active');
+    }
+
+    document.getElementById('btnCancelDelete').addEventListener('click', () => {
+      document.getElementById('deleteModal').classList.remove('active');
+      deleteDocId = null;
+    });
+
+    document.getElementById('btnConfirmDelete').addEventListener('click', async () => {
+      if (!deleteDocId || !currentUser) return;
+      try {
+        await db.doc(userPath()).collection('lecturas').doc(deleteDocId).delete();
+        showToast('Lectura eliminada', 'success');
+      } catch (err) {
+        showToast('Error: ' + err.message, 'danger');
+      }
+      document.getElementById('deleteModal').classList.remove('active');
+      deleteDocId = null;
+    });
+
+    // ==============================
+    // EXPORT CSV
+    // ==============================
+    document.getElementById('btnExportCSV').addEventListener('click', () => {
+      if (allLecturas.length === 0) { showToast('No hay datos para exportar', 'warning'); return; }
+      const fm = document.getElementById('filterMes').value;
+      let data = [...allLecturas];
+      if (fm) data = data.filter(l => getMonthStr(l.fecha) === fm);
+
+      const header = 'Fecha,Turno,Lectura (kWh),Consumo Delta (kWh),Nota\n';
+      const rows = data.map(l => `${l.fecha},${l.turno},${l.lectura_kwh},${l.consumo_delta},"${(l.nota || '').replace(/"/g, '""')}"`).join('\n');
+
+      const blob = new Blob(['\uFEFF' + header + rows], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `lecturas_aire_${fm || 'completo'}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('CSV exportado 📥', 'success');
+    });
+
+    // ==============================
+    // CHARTS
+    // ==============================
+    const chartOpts = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#9ca3af', font: { family: "'Plus Jakarta Sans', sans-serif", size: 11 } } }
+      },
+      scales: {
+        x: { ticks: { color: '#9ca3af', font: { family: "'Plus Jakarta Sans', sans-serif", size: 9 }, maxRotation: 45 }, grid: { color: 'rgba(255, 255, 255, 0.03)' } },
+        y: { ticks: { color: '#9ca3af', font: { family: "'Plus Jakarta Sans', sans-serif", size: 10 } }, grid: { color: 'rgba(255, 255, 255, 0.03)' } }
+      }
+    };
+
+    function renderQuickChart() {
+      const ctx = document.getElementById('quickChart');
+      if (!ctx) return;
+      const today = new Date();
+      const labels = [], data = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today); d.setDate(d.getDate() - i);
+        const ds = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        labels.push(String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0'));
+        data.push(allLecturas.filter(l => l.fecha === ds).reduce((s,l) => s + (l.consumo_delta||0), 0));
+      }
+      if (chartInstances.quick) chartInstances.quick.destroy();
+      chartInstances.quick = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets: [{ label: 'kWh', data, backgroundColor: data.map(v => v > 0 ? 'rgba(0,229,255,0.4)' : 'rgba(0,229,255,0.1)'), borderColor: 'rgba(0,229,255,0.8)', borderWidth: 1, borderRadius: 6 }] },
+        options: { ...chartOpts, plugins: { ...chartOpts.plugins, legend: { display: false } } }
+      });
+    }
+
+    function renderAllCharts() { renderDailyChart(); renderMonthlyChart(); renderDonutChart(); }
+
+    function renderDailyChart() {
+      const ctx = document.getElementById('chartDiario');
+      if (!ctx) return;
+      const today = new Date();
+      const labels = [], data = [];
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(today); d.setDate(d.getDate() - i);
+        const ds = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+        labels.push(String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'));
+        data.push(allLecturas.filter(l => l.fecha === ds).reduce((s,l) => s+(l.consumo_delta||0), 0));
+      }
+      const nz = data.filter(v => v > 0);
+      const avg = nz.length > 0 ? nz.reduce((s,v) => s+v, 0)/nz.length : 0;
+
+      if (chartInstances.diario) chartInstances.diario.destroy();
+      chartInstances.diario = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets: [{ label: 'kWh', data, backgroundColor: data.map(v => v > avg*1.2 ? 'rgba(255,61,90,0.5)' : 'rgba(0,229,255,0.4)'), borderColor: data.map(v => v > avg*1.2 ? 'rgba(255,61,90,0.8)' : 'rgba(0,229,255,0.8)'), borderWidth: 1, borderRadius: 4 }] },
+        options: chartOpts
+      });
+    }
+
+    function renderMonthlyChart() {
+      const ctx = document.getElementById('chartMensual');
+      if (!ctx) return;
+      const today = new Date();
+      const labels = [], data = [], colors = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(today.getFullYear(), today.getMonth()-i, 1);
+        const ms = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+        labels.push(getMonthName(ms));
+        data.push(allLecturas.filter(l => getMonthStr(l.fecha) === ms).reduce((s,l) => s+(l.consumo_delta||0), 0));
+      }
+      for (let i = 0; i < data.length; i++) {
+        if (i === 0 || data[i-1] === 0) colors.push('rgba(0,229,255,0.8)');
+        else colors.push(data[i] > data[i-1] ? 'rgba(255,61,90,0.8)' : 'rgba(127,255,0,0.8)');
+      }
+      if (chartInstances.mensual) chartInstances.mensual.destroy();
+      chartInstances.mensual = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets: [{ label: 'kWh/mes', data, borderColor: 'rgba(0,229,255,0.8)', backgroundColor: 'rgba(0,229,255,0.1)', fill: true, tension: 0.3, pointBackgroundColor: colors, pointBorderColor: colors, pointRadius: 6, pointHoverRadius: 9, borderWidth: 2 }] },
+        options: { ...chartOpts, plugins: { ...chartOpts.plugins, tooltip: { callbacks: { afterLabel: function(c) { const i = c.dataIndex; if (i===0||data[i-1]===0) return ''; const p = ((data[i]-data[i-1])/data[i-1]*100).toFixed(1); return p>0 ? `▲ +${p}%` : `▼ ${p}%`; } } } } }
+      });
+    }
+
+    function renderDonutChart() {
+      const ctx = document.getElementById('chartDonut');
+      if (!ctx) return;
+      const cm = getMonthStr(todayStr());
+      const mr = allLecturas.filter(l => getMonthStr(l.fecha) === cm);
+      const am = mr.filter(l => l.turno==='AM').reduce((s,l) => s+(l.consumo_delta||0), 0);
+      const pm = mr.filter(l => l.turno==='PM').reduce((s,l) => s+(l.consumo_delta||0), 0);
+
+      if (chartInstances.donut) chartInstances.donut.destroy();
+      chartInstances.donut = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels: ['☀️ Mañana (AM)', '🌙 Noche (PM)'], datasets: [{ data: [am, pm], backgroundColor: ['rgba(255,171,0,0.6)', 'rgba(179,136,255,0.6)'], borderColor: ['rgba(255,171,0,0.9)', 'rgba(179,136,255,0.9)'], borderWidth: 2, hoverOffset: 10 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#9ca3af', font: { family: "'Plus Jakarta Sans', sans-serif", size: 11 }, padding: 16 } }, tooltip: { callbacks: { label: function(c) { const t = am+pm; const p = t>0 ? (c.parsed/t*100).toFixed(1) : 0; return `${c.parsed.toFixed(2)} kWh (${p}%)`; } } } } }
+      });
+    }
+
+    // ==============================
+    // CONFIG SAVE & ESTRATO CHANGE
+    // ==============================
+    document.getElementById('btnGuardarConfig').addEventListener('click', saveConfig);
+
+    document.getElementById('estratoSelect').addEventListener('change', () => {
+      const v = document.getElementById('estratoSelect').value;
+      userConfig.estrato = v === '5' ? 5 : parseInt(v);
+      
+      // Auto-update suggested tasa_seguridad based on estrato
+      let suggestedTasa = 16000;
+      if (userConfig.estrato === 1 || userConfig.estrato === 2) suggestedTasa = 0;
+      else if (userConfig.estrato === 3) suggestedTasa = 16000;
+      else if (userConfig.estrato === 4) suggestedTasa = 25000;
+      else if (userConfig.estrato >= 5) suggestedTasa = 35000;
+      
+      userConfig.tasa_seguridad = suggestedTasa;
+      document.getElementById('inputTasaSeguridad').value = suggestedTasa;
+      
+      if (currentUser) {
+        localStorage.setItem(`aire_config_${currentUser.uid}`, JSON.stringify(userConfig));
+        db.doc(userPath()).collection('config').doc('settings').set(userConfig).catch(() => {});
+      }
+      refreshDashboard();
+    });
+
+    // ==============================
+    // CALCULATOR LISTENERS
+    // ==============================
+    document.getElementById('calcMeta').addEventListener('input', updateCalculator);
+    document.getElementById('calcActual').addEventListener('input', updateCalculator);
+    document.getElementById('calcDias').addEventListener('input', updateCalculator);
+
+    // ==============================
+    // PAST BILLS (Facturas Historial)
+    // ==============================
+    let allFacturas = [];
+    let unsubscribeFacturas = null;
+
+    function startFacturasListener() {
+      if (!currentUser) return;
+      if (unsubscribeFacturas) unsubscribeFacturas();
+
+      unsubscribeFacturas = db.doc(userPath()).collection('facturas_historial')
+        .orderBy('mes', 'asc')
+        .onSnapshot(snapshot => {
+          allFacturas = [];
+          snapshot.forEach(doc => allFacturas.push({ id: doc.id, ...doc.data() }));
+
+          allFacturas.sort((a, b) => a.mes.localeCompare(b.mes));
+
+          renderFacturasTable();
+          renderFacturasChart();
+        }, err => {
+          console.error('Facturas listener error:', err);
+        });
+    }
+
+    document.getElementById('facturaHistorialForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!currentUser) return;
+
+      const mes = document.getElementById('facturaMes').value;
+      const kwh = parseFloat(document.getElementById('facturaKwh').value);
+      const copVal = document.getElementById('facturaCop').value;
+
+      if (!mes || isNaN(kwh)) return;
+
+      let cop;
+      if (copVal.trim() === '') {
+        const ek = userConfig.estrato >= 5 ? '5' : String(userConfig.estrato);
+        const defaultTarifa = TARIFAS[ek] || TARIFAS['3'];
+        const realKwh = parseFloat(userConfig.factura_real_kwh) || 0;
+        const realCop = parseFloat(userConfig.factura_real_cop) || 0;
+        const tasaSeguridad = userConfig.tasa_seguridad !== undefined ? parseFloat(userConfig.tasa_seguridad) : 16000;
+        
+        let tarifa = defaultTarifa;
+        if (realKwh > 0 && realCop > tasaSeguridad) {
+          tarifa = (realCop - tasaSeguridad) / realKwh;
+        }
+        cop = Math.round(kwh * tarifa + tasaSeguridad);
+      } else {
+        cop = parseInt(copVal);
+        if (isNaN(cop)) return;
+      }
+
+      const existing = allFacturas.find(f => f.mes === mes);
+      if (existing) {
+        showToast(`Ya existe un registro para el mes ${getMonthName(mes)}`, 'warning');
+        return;
+      }
+
+      try {
+        await db.doc(userPath()).collection('facturas_historial').add({
+          mes,
+          consumo_kwh: kwh,
+          valor_cop: cop,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        showToast('Factura agregada al historial ✅', 'success');
+        document.getElementById('facturaKwh').value = '';
+        document.getElementById('facturaCop').value = '';
+      } catch (err) {
+        showToast('Error al guardar: ' + err.message, 'danger');
+      }
+    });
+
+    async function deleteFactura(id) {
+      if (!currentUser) return;
+      if (!confirm('¿Estás seguro de que deseas eliminar esta factura del historial?')) return;
+      try {
+        await db.doc(userPath()).collection('facturas_historial').doc(id).delete();
+        showToast('Factura eliminada del historial', 'success');
+      } catch (err) {
+        showToast('Error: ' + err.message, 'danger');
+      }
+    }
+    window.deleteFactura = deleteFactura;
+
+    function renderFacturasTable() {
+      const body = document.getElementById('facturasBody');
+      const empty = document.getElementById('emptyFacturas');
+      if (!body) return;
+      body.innerHTML = '';
+
+      if (allFacturas.length === 0) {
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      allFacturas.forEach(f => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="font-weight:600;">${getMonthName(f.mes)}</td>
+          <td style="font-family:var(--font-mono);">${fmt(f.consumo_kwh, 1)} kWh</td>
+          <td style="font-family:var(--font-mono);">${formatCurrency(f.valor_cop)}</td>
+          <td style="text-align:right;">
+            <button class="btn-danger" onclick="deleteFactura('${f.id}')" title="Eliminar factura" style="padding: 4px 8px; font-size: 0.65rem;">🗑️</button>
+          </td>
+        `;
+        body.appendChild(tr);
+      });
+    }
+
+    function renderFacturasChart() {
+      const ctx = document.getElementById('chartFacturas');
+      if (!ctx) return;
+
+      if (allFacturas.length === 0) {
+        if (chartInstances.facturas) chartInstances.facturas.destroy();
+        chartInstances.facturas = null;
+        return;
+      }
+
+      const labels = allFacturas.map(f => getMonthName(f.mes));
+      const dataKwh = allFacturas.map(f => f.consumo_kwh);
+      const dataCop = allFacturas.map(f => f.valor_cop);
+
+      if (chartInstances.facturas) chartInstances.facturas.destroy();
+
+      chartInstances.facturas = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Consumo (kWh)',
+              data: dataKwh,
+              backgroundColor: 'rgba(0, 229, 255, 0.25)',
+              borderColor: 'rgba(0, 229, 255, 0.85)',
+              borderWidth: 2,
+              yAxisID: 'yKwh',
+              borderRadius: 6
+            },
+            {
+              label: 'Costo (COP)',
+              data: dataCop,
+              type: 'line',
+              borderColor: 'rgba(127, 255, 0, 0.85)',
+              backgroundColor: 'rgba(127, 255, 0, 0.1)',
+              borderWidth: 3,
+              tension: 0.35,
+              pointBackgroundColor: 'rgba(127, 255, 0, 1)',
+              pointRadius: 5,
+              yAxisID: 'yCop',
+              fill: false
+            }
+          ]
+        },
+        options: {
+          ...chartOpts,
+          scales: {
+            x: chartOpts.scales.x,
+            yKwh: {
+              type: 'linear',
+              position: 'left',
+              title: { display: true, text: 'Consumo (kWh)', color: '#9ca3af', font: { family: "'Plus Jakarta Sans', sans-serif", size: 10 } },
+              ticks: { color: '#9ca3af', font: { family: "'Plus Jakarta Sans', sans-serif", size: 10 } },
+              grid: { color: 'rgba(255, 255, 255, 0.03)' }
+            },
+            yCop: {
+              type: 'linear',
+              position: 'right',
+              title: { display: true, text: 'Costo (COP)', color: '#9ca3af', font: { family: "'Plus Jakarta Sans', sans-serif", size: 10 } },
+              ticks: {
+                color: '#9ca3af',
+                font: { family: "'Plus Jakarta Sans', sans-serif", size: 10 },
+                callback: function(value) { return '$' + (value/1000).toFixed(0) + 'k'; }
+              },
+              grid: { drawOnChartArea: false }
+            }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
