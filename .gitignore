@@ -2,3 +2,4 @@
 .firebaserc
 index.html.bak
 .DS_Store
+.env
