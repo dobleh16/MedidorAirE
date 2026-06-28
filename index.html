@@ -2660,20 +2660,31 @@
 
       let html = '';
       let currentMonthGroup = null;
+      let isFirstGroup = true;
 
       filtered.forEach(l => {
         const mStr = getMonthStr(l.fecha);
         if (mStr !== currentMonthGroup) {
+          if (currentMonthGroup !== null) isFirstGroup = false;
+          currentMonthGroup = mStr;
+          
+          const expanded = fm || isFirstGroup;
+          const icon = expanded ? '▼' : '▶';
+
           html += `
-            <tr style="background: rgba(14, 165, 233, 0.1);">
-              <td colspan="6" style="text-align:center; font-weight:700; color:var(--accent-cyan); padding:10px; font-size:0.75rem; letter-spacing:1px;">
+            <tr style="background: rgba(14, 165, 233, 0.1); cursor: pointer; transition: 0.2s;" onclick="toggleMonthGroup('${mStr}')" onmouseover="this.style.background='rgba(14, 165, 233, 0.2)'" onmouseout="this.style.background='rgba(14, 165, 233, 0.1)'">
+              <td colspan="6" style="text-align:center; font-weight:700; color:var(--accent-cyan); padding:10px; font-size:0.75rem; letter-spacing:1px; user-select: none;">
+                <span id="icon-month-${mStr}" style="display:inline-block; width:16px;">${icon}</span>
                 ${getMonthName(mStr).toUpperCase()}
               </td>
             </tr>`;
-          currentMonthGroup = mStr;
         }
+        
+        const expanded = fm || isFirstGroup;
+        const displayStyle = expanded ? '' : 'display: none;';
+
         html += `
-          <tr>
+          <tr class="row-month-${mStr}" style="${displayStyle}">
             <td>${formatDate(l.fecha)}</td>
             <td><span class="badge-turno badge-${l.turno.toLowerCase()}">${l.turno}</span></td>
             <td style="font-weight:600">${fmt(l.lectura_kwh)}</td>
@@ -2685,6 +2696,15 @@
 
       tbody.innerHTML = html;
     }
+
+    window.toggleMonthGroup = function(mStr) {
+      const rows = document.querySelectorAll('.row-month-' + mStr);
+      const icon = document.getElementById('icon-month-' + mStr);
+      if (!rows.length) return;
+      const isHidden = rows[0].style.display === 'none';
+      rows.forEach(r => r.style.display = isHidden ? '' : 'none');
+      if (icon) icon.textContent = isHidden ? '▼' : '▶';
+    };
 
     function populateMonthFilter() {
       const sel = document.getElementById('filterMes');
