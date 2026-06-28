@@ -2658,15 +2658,32 @@
       if (filtered.length === 0) { tbody.innerHTML = ''; empty.classList.remove('hidden'); return; }
       empty.classList.add('hidden');
 
-      tbody.innerHTML = filtered.map(l => `
-        <tr>
-          <td>${formatDate(l.fecha)}</td>
-          <td><span class="badge-turno badge-${l.turno.toLowerCase()}">${l.turno}</span></td>
-          <td style="font-weight:600">${fmt(l.lectura_kwh)}</td>
-          <td class="text-cyan">${fmt(l.consumo_delta)} kWh</td>
-          <td class="text-muted">${l.nota || '—'}</td>
-          <td><button class="btn-danger" onclick="promptDelete('${l.id}')">✕</button></td>
-        </tr>`).join('');
+      let html = '';
+      let currentMonthGroup = null;
+
+      filtered.forEach(l => {
+        const mStr = getMonthStr(l.fecha);
+        if (mStr !== currentMonthGroup) {
+          html += `
+            <tr style="background: rgba(14, 165, 233, 0.1);">
+              <td colspan="6" style="text-align:center; font-weight:700; color:var(--accent-cyan); padding:10px; font-size:0.75rem; letter-spacing:1px;">
+                ${getMonthName(mStr).toUpperCase()}
+              </td>
+            </tr>`;
+          currentMonthGroup = mStr;
+        }
+        html += `
+          <tr>
+            <td>${formatDate(l.fecha)}</td>
+            <td><span class="badge-turno badge-${l.turno.toLowerCase()}">${l.turno}</span></td>
+            <td style="font-weight:600">${fmt(l.lectura_kwh)}</td>
+            <td class="text-cyan">${fmt(l.consumo_delta)} kWh</td>
+            <td class="text-muted">${l.nota || '—'}</td>
+            <td><button class="btn-danger" onclick="promptDelete('${l.id}')">✕</button></td>
+          </tr>`;
+      });
+
+      tbody.innerHTML = html;
     }
 
     function populateMonthFilter() {
